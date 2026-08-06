@@ -29,10 +29,11 @@ form.addEventListener("submit", async (e) => {
     
     if (response.ok) {
 
-        // Save token
-        localStorage.setItem("token", data.token);
+        // Clear any previous session
+        localStorage.clear();
 
-        // Save user information
+        // Save new session
+        localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
 
         message.style.color = "lime";
@@ -43,15 +44,15 @@ form.addEventListener("submit", async (e) => {
             switch (data.user.role) {
 
                 case "driver":
-                    window.location.href = "driver.html";
+                    window.location.replace = "driver.html";
                     break;
 
                 case "admin":
-                    window.location.href = "admin.html";
+                    window.location.replace = "admin.html";
                     break;
 
                 default:
-                    window.location.href = "index.html";
+                    window.location.replace = "index.html";
             }
 
         }, 1000);
