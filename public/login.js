@@ -44,15 +44,15 @@ form.addEventListener("submit", async (e) => {
             switch (data.user.role) {
 
                 case "driver":
-                    window.location.replace = "driver.html";
+                    window.location.replace("driver.html");
                     break;
 
                 case "admin":
-                    window.location.replace = "admin.html";
+                    window.location.replace("admin.html");
                     break;
 
                 default:
-                    window.location.replace = "index.html";
+                    window.location.replace("index.html");
             }
 
         }, 1000);
