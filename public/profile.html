@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>My Profile</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body class="profile-page">
+
+    <div class="profile-card">
+
+        <div class="profile-avatar">👤</div>
+
+        <h2>My Profile</h2>
+
+        <div class="profile-item">
+            <strong>First Name:</strong>
+            <span id="firstName"></span>
+        </div>
+
+        <div class="profile-item">
+            <strong>Last Name:</strong>
+            <span id="lastName"></span>
+        </div>
+
+        <div class="profile-item">
+            <strong>Email:</strong>
+            <span id="email"></span>
+        </div>
+
+        <div class="profile-item">
+            <strong>Role:</strong>
+            <span id="role"></span>
+        </div>
+
+        <div class="profile-actions">
+            <button class="primary-btn" onclick="goHome()">
+                Ride Dashboard
+            </button>
+
+            <button class="danger-btn" onclick="logout()">
+                Logout
+            </button>
+        </div>
+
+    </div>
+
+    <script src="profile.js"></script>
+
+    </body>
+    </html>

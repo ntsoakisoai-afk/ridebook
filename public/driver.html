@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Driver Dashboard</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  </head>
+
+  <body class="driver-page">
+
+  <div class="driver-layout">
+
+      <aside class="driver-sidebar">
+
+          <h2>RideBook</h2>
+
+          <div class="driver-user">
+
+              <div class="avatar">
+                  👤
+              </div>
+
+              <h3 id="driverName"></h3>
+
+              <span class="online">🟢 Online</span>
+
+          </div>
+
+          <nav>
+
+              <button onclick="window.location.href='driver.html'">
+                  🚖 Dashboard
+              </button>
+
+              <button onclick="window.location.href='profile.html'">
+                  👤 My Profile
+              </button>
+
+              <button onclick="window.location.href='history.html'">
+                  📜 Ride History
+              </button>
+
+              <button class="logout-btn"
+                  onclick="localStorage.clear();window.location.href='login.html'">
+                  🚪 Logout
+              </button>
+
+          </nav>
+
+      </aside>
+
+      <main class="driver-content">
+
+          <h1>Available Rides</h1>
+
+          <p>Accept incoming ride requests.</p>
+
+          <div id="driver-rides"></div>
+
+      </main>
+
+  </div>
+
+  <script src="driver.js"></script>
+
+  </body>
+</html>

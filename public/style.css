@@ -1,0 +1,499 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* SIDEBAR / APP */
+#sidebar {
+  width: 320px;
+  padding: 35px 25px;
+  background: #1a1a2e;
+  color: #ffffff;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+#sidebar h1 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  color: #00d4aa;
+}
+#sidebar h2 {
+  font-size: 1rem;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #aaaaaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.instruction {
+  font-size: 0.9rem;
+  color: #cccccc;
+  margin-bottom: 15px;
+}
+
+#ride-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+#ride-controls.hidden {
+  display: none;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+#request-btn {
+  background: #00d4aa;
+  color: #1a1a2e;
+  flex: 1;
+}
+#request-btn:hover { background: #00b894; }
+
+#reset-btn {
+  background: #444466;
+  color: #ffffff;
+}
+#reset-btn:hover { background: #555577; }
+
+#rides-list {
+  list-style: none;
+}
+#rides-list li {
+  background: #16213e;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  transition: .25s;
+}
+#rides-list li .status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+#rides-list li .status.pending {
+  background: #ffc107;
+  color: #1a1a2e;
+}
+#rides-list li .status.accepted {
+  background: #00d4aa;
+  color: #1a1a2e;
+}
+#rides-list li .status.completed {
+  background: #6c757d;
+  color: #ffffff;
+}
+
+rides-list li:hover {
+  transform: translateY(-2px);
+  background: #203256;
+}
+
+#map {
+  flex: 1;
+  height: 100vh;
+  border-radius: 15px 0 0 15px;
+}
+
+/* ===========================
+   Authentication Pages
+   =========================== */
+
+.auth-page {
+  background: #1a1a2e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: auto;
+}
+
+.auth-card {
+  width: 420px;
+  background: #16213e;
+  color: #ffffff;
+  padding: 35px;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0,0,0,.3);
+}
+
+.auth-card h1 {
+  color: #00d4aa;
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.auth-card p {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.auth-card a {
+  color: #00d4aa;
+  text-decoration: none;
+}
+
+.auth-card input,
+.auth-card select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #444466;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1a1a2e;
+  font-size: 15px;
+}
+
+.auth-card input:focus,
+.auth-card select:focus {
+  outline: none;
+  border-color: #00d4aa;
+}
+
+.auth-card button {
+  width: 100%;
+  padding: 12px;
+  background: #00d4aa;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+.auth-card button:hover { background: #00b894; }
+
+#message {
+  margin-top: 15px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ===========================
+   PROFILE PAGE
+   =========================== */
+
+.profile-page {
+  background: #0f172a;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: Arial, sans-serif;
+}
+
+.profile-card {
+  width: 420px;
+  background: #1e293b;
+  border-radius: 18px;
+  padding: 35px;
+  box-shadow: 0 15px 35px rgba(0,0,0,.35);
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  margin: auto;
+  margin-bottom: 20px;
+  border-radius: 50%;
+  background: #00d4aa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 50px;
+}
+
+.profile-card h2 {
+  text-align: center;
+  color: white;
+  margin-bottom: 30px;
+}
+
+.profile-item {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-item label {
+  color: #00d4aa;
+  font-size: 14px;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.profile-item span {
+  background: #16213e;
+  padding: 12px;
+  border-radius: 8px;
+  color: white;
+  font-size: 15px;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  justify-content: flex-end;
+}
+
+.profile-actions button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #2d3748;
+  color: white;
+  cursor: pointer;
+  transition: .3s;
+}
+.profile-actions button:hover {
+  background: #00d4aa;
+  color: #111827;
+}
+
+.primary-btn {
+  background: #00d4aa;
+  color: #111827;
+}
+.primary-btn:hover { background: #00b894; }
+
+.danger-btn {
+  background: #ef4444;
+  color: white;
+}
+.danger-btn:hover { background: #dc2626; }
+
+/* ===========================
+   DRIVER PAGE / LAYOUT
+   =========================== */
+
+.driver-page,
+.driver-layout {
+  margin: 0;
+  background: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  min-height: 100vh;
+}
+
+#driver-dashboard {
+  max-width: 900px;
+  margin: auto;
+  background: #1a1a2e;
+  border-radius: 15px;
+  padding: 35px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+
+#driver-dashboard h1 {
+  color: #00d4aa;
+  font-size: 42px;
+  margin-bottom: 10px;
+}
+
+#driver-dashboard p {
+  color: #cfcfcf;
+}
+
+.driver-layout { display: flex; }
+
+.driver-sidebar {
+  width: 270px;
+  background: #0f172a;
+  padding: 30px;
+  box-shadow: 3px 0 10px rgba(0,0,0,.3);
+}
+
+.driver-sidebar h2 {
+  color: #00d4aa;
+  margin-bottom: 35px;
+}
+
+.driver-user {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #24304d;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 45px;
+  margin: auto;
+}
+
+.driver-user h3 { margin-top: 15px; }
+
+.online { color: #00d4aa; }
+
+.driver-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.driver-sidebar button {
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #24304d;
+  color: white;
+  text-align: left;
+  transition: .3s;
+}
+.driver-sidebar button:hover {
+  background: #00d4aa;
+  color: #111827;
+}
+
+.driver-content {
+  flex: 1;
+  padding: 40px;
+}
+
+.driver-content h1 {
+  color: #00d4aa;
+  font-size: 38px;
+}
+
+/* RIDE CARD (driver-scoped) */
+.driver-page .ride-card,
+.ride-card {
+  background: #1f2a44;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border-left: 5px solid #00d4aa;
+}
+
+.driver-page .coords,
+.coords {
+  margin-bottom: 15px;
+  line-height: 1.7;
+  color: #ddd;
+}
+
+/* STATUS: driver-scoped to avoid conflicting with sidebar statuses */
+.driver-page .status {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 30px;
+  margin-right: 15px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
+.driver-page .status.pending { background: #f39c12; }
+.driver-page .status.accepted { background: #3498db; }
+.driver-page .status.completed { background: #2ecc71; }
+
+.status{
+  margin-bottom: 12px;
+}
+
+/* ACTION BUTTONS */
+.accept-btn,
+.complete-btn {
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.accept-btn {
+  background: #00d4aa;
+  color: #111827;
+}
+
+.complete-btn {
+  background: #6c63ff;
+  color: white;
+}
+
+/* LOGOUT */
+.logout-btn {
+  background: #dc3545 !important;
+}
+.logout-btn:hover { background: #bb2d3b !important; }
+
+#user-panel{
+  background: #24304d;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.user-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #00d4aa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 36px;
+  margin: auto;
+}
+
+.user-role {
+  display: inline-block;
+  margin-top: 8px;
+  background: #00d4aa;
+  color: #111827;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.user-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.instruction-card{
+  background: #24304d;
+  border-left: 4px solid #00d4aa;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.ride-subtitle{
+  color:#bfc8d6;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
