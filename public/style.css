@@ -6,13 +6,16 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #app {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
+  height: auto;
 }
 
 /* SIDEBAR / APP */
@@ -115,6 +118,7 @@ rides-list li:hover {
 
 #map {
   flex: 1;
+  min-height: 100vh;
   height: 100vh;
   border-radius: 15px 0 0 15px;
 }
@@ -131,7 +135,9 @@ body {
 .auth-page {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -408,9 +414,19 @@ body {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  html,
+  body {
+    min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .auth-page {
     padding: 16px;
+    min-height: 100vh;
+    height: auto;
   }
 
   .auth-card {
