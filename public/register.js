@@ -1,6 +1,12 @@
 const form = document.getElementById("registerForm");
 const message = document.getElementById("message");
 
+window.addEventListener("pageshow", () => {
+    if (form) {
+        form.reset();
+    }
+});
+
 form.addEventListener("submit", async (e) => {
 
     e.preventDefault();

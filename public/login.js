@@ -1,8 +1,13 @@
-sessionStorage.clear();
-localStorage.clear();
-
 const form = document.getElementById("loginForm");
 const message = document.getElementById("message");
+
+window.addEventListener("pageshow", () => {
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+
+    if (emailInput) emailInput.value = "";
+    if (passwordInput) passwordInput.value = "";
+});
 
 form.addEventListener("submit", async (e) => {
 
