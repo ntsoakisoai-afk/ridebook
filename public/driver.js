@@ -1,8 +1,8 @@
 console.log("Driver page loaded");
 
 const driverRides = document.getElementById('driver-rides');
-const token = localStorage.getItem('token');
-const user = JSON.parse(localStorage.getItem('user'));
+const token = sessionStorage.getItem('token');
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 
 if (!token || !user) {
   window.location.href = '/login.html'; // Redirect to login page if not logged in
@@ -28,8 +28,9 @@ async function loadPendingRides() {
     });
 
     if(response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      localStorage.clear();
       window.location.href = '/login.html';
       return;
     }
@@ -76,8 +77,9 @@ async function updateRide(id, status) {
     });
 
     if(response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      localStorage.clear();
       window.location.href = '/login.html';
       return;
     }

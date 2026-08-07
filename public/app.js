@@ -110,7 +110,7 @@ function addRideToMap(ride) {
 requestBtn.addEventListener('click', async function () {
   if (!pickupMarker || !dropoffMarker) return;
 
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
 
   if (!token) {
     alert('You must be logged in to request a ride.');
@@ -158,7 +158,7 @@ requestBtn.addEventListener('click', async function () {
 // Fetch all rides from the database and display them
 async function loadRides() {
 
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
 
   if (!token) {
     window.location.href = '/login.html'; // Redirect to login page if not logged in
@@ -188,7 +188,7 @@ async function loadRides() {
   }
 }
 
-const user = JSON.parse(localStorage.getItem('user'));
+const user = JSON.parse(sessionStorage.getItem('user') || 'null');
 if (!user) {
   window.location.href = '/login.html'; // Redirect to login page if not logged in
 } else {
@@ -200,8 +200,9 @@ profileBtn.addEventListener("click", () =>{
 });
 
 logoutBtn.addEventListener("click", () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("user");
+  localStorage.clear();
   window.location.href = '/login.html';
 });
 

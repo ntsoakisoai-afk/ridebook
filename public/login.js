@@ -1,3 +1,6 @@
+sessionStorage.clear();
+localStorage.clear();
+
 const form = document.getElementById("loginForm");
 const message = document.getElementById("message");
 
@@ -30,11 +33,12 @@ form.addEventListener("submit", async (e) => {
     if (response.ok) {
 
         // Clear any previous session
+        sessionStorage.clear();
         localStorage.clear();
 
-        // Save new session
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        // Save new session for this browser tab only
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
 
         message.style.color = "lime";
         message.textContent = "Login successful!";

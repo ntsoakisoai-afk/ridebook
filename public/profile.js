@@ -1,4 +1,4 @@
-const user = JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(sessionStorage.getItem("user") || "null");
 
 if (!user) {
     window.location.href = "login.html";
@@ -11,14 +11,15 @@ document.getElementById("role").textContent = user.role;
 
 function logout() {
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+    localStorage.clear();
 
     window.location.href = "login.html";
 }
 
 function goHome() {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(sessionStorage.getItem("user") || "null");
 
     if (!user) {
         window.location.href = "login.html";

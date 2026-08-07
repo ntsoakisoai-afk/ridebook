@@ -1,5 +1,5 @@
-const token = localStorage.getItem("token");
-const user = JSON.parse(localStorage.getItem("user"));
+const token = sessionStorage.getItem("token");
+const user = JSON.parse(sessionStorage.getItem("user") || "null");
 
 if (!token || !user) {
     window.location.href = "login.html";
@@ -21,6 +21,7 @@ async function loadHistory() {
         });
 
         if (response.status === 401) {
+            sessionStorage.clear();
             localStorage.clear();
             window.location.href = "login.html";
             return;
