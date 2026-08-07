@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Ride Booking</title>
 
+    <script>
+        const storedUser = sessionStorage.getItem("user");
+        const storedToken = sessionStorage.getItem("token");
+
+        if (storedToken && storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                if (user.role === "driver") {
+                    window.location.replace("driver.html");
+                } else if (user.role === "admin") {
+                    window.location.replace("admin.html");
+                } else {
+                    window.location.replace("index.html");
+                }
+            } catch (error) {
+                sessionStorage.clear();
+            }
+        }
+    </script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 
