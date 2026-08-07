@@ -332,8 +332,8 @@ body {
   padding: 12px 14px;
   border: 1px solid #2f3b3a;
   border-radius: 10px;
-  background: #111827;
-  color: #f5f7f8;
+  background: #ffffff;
+  color: #111111;
   font-size: 0.95rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
