@@ -54,10 +54,26 @@
           <button id="reset-btn">Reset</button>
 
         </div>
+
+        <div class="ride-filter-panel">
+          <div class="ride-sort-wrapper">
+            <label for="ride-sort" class="ride-sort-label">Sort / Filter:</label>
+            <select id="ride-sort" class="filter-select">
+              <option value="newest">Newest</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+          <div class="ride-count" id="ride-count">0 rides</div>
+        </div>
+
         <h2>My Rides</h2>
         <p class="ride-subtitle">View all your past and upcoming rides</p>
 
-        <ul id="rides-list"></ul>
+        <div class="ride-list-panel">
+          <ul id="rides-list"></ul>
+        </div>
 
       </div>
 

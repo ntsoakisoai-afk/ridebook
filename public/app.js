@@ -18,6 +18,11 @@ const rideControls = document.getElementById('ride-controls');
 const requestBtn = document.getElementById('request-btn');
 const resetBtn = document.getElementById('reset-btn');
 const ridesList = document.getElementById('rides-list');
+const rideCount = document.getElementById('ride-count');
+const rideSort = document.getElementById('ride-sort');
+
+let passengerRides = [];
+let currentFilter = 'newest';
 
 const profileBtn = document.getElementById('profile-btn');
 const logoutBtn = document.getElementById('logout-btn');
@@ -71,15 +76,62 @@ function resetMarkers() {
 }
 
 resetBtn.addEventListener('click', resetMarkers);
-function addRideToList(ride) {
-  // Create a list item showing the ride's status and coordinates
-  const li = document.createElement('li');
-  li.innerHTML = `
-    <span class="status ${ride.status}">${ride.status}</span>
-    Pickup: ${ride.pickup.lat.toFixed(4)}, ${ride.pickup.lng.toFixed(4)}<br>
-    Dropoff: ${ride.dropoff.lat.toFixed(4)}, ${ride.dropoff.lng.toFixed(4)}
-  `;
-  ridesList.prepend(li);
+
+function sortRidesNewestFirst(rides) {
+  return [...rides].sort((a, b) => {
+    const dateA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+    const dateB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+    return dateB - dateA;
+  });
+}
+
+function getFilteredRides() {
+  if (currentFilter === 'pending') {
+    return sortRidesNewestFirst(passengerRides.filter(ride => ride.status === 'pending'));
+  }
+  if (currentFilter === 'completed') {
+    return sortRidesNewestFirst(passengerRides.filter(ride => ride.status === 'completed'));
+  }
+  return sortRidesNewestFirst(passengerRides);
+}
+
+function updateRideCount(filteredRides) {
+  if (!rideCount) return;
+  const count = filteredRides.length;
+  rideCount.textContent = `${count} ride${count === 1 ? '' : 's'}`;
+}
+
+function renderRideList(rides) {
+  ridesList.innerHTML = '';
+  updateRideCount(rides);
+
+  if (rides.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'no-rides';
+    empty.textContent = 'No rides match this filter yet.';
+    ridesList.appendChild(empty);
+    return;
+  }
+
+  rides.forEach(ride => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <span class="status ${ride.status}">${ride.status}</span>
+      <strong>${new Date(ride.createdAt || ride.updatedAt || Date.now()).toLocaleString()}</strong><br>
+      Pickup: ${ride.pickup.lat.toFixed(4)}, ${ride.pickup.lng.toFixed(4)}<br>
+      Dropoff: ${ride.dropoff.lat.toFixed(4)}, ${ride.dropoff.lng.toFixed(4)}
+    `;
+    ridesList.appendChild(li);
+  });
+}
+
+function setFilter(filter) {
+  currentFilter = filter;
+  renderRideList(getFilteredRides());
+}
+
+if (rideSort) {
+  rideSort.addEventListener('change', () => setFilter(rideSort.value));
 }
 
 //Draw ride on the map with pickup and dropoff markers and a connecting line
@@ -146,7 +198,8 @@ requestBtn.addEventListener('click', async function () {
     }
 
     const savedRide = await response.json();
-    addRideToList(savedRide);
+    passengerRides.unshift(savedRide);
+    renderRideList(getFilteredRides());
     addRideToMap(savedRide);
     resetMarkers();
   } catch (err) {
@@ -177,9 +230,10 @@ async function loadRides() {
     }
 
     const rides = await response.json();
+    passengerRides = sortRidesNewestFirst(rides);
+    renderRideList(getFilteredRides());
 
-    rides.forEach(ride => {
-      addRideToList(ride);
+    passengerRides.forEach(ride => {
       addRideToMap(ride);
     });
   } catch (err) {
