@@ -16,6 +16,11 @@ form.addEventListener("submit", async (e) => {
 
     };
 
+    if (!firstName.value.trim() || !lastName.value.trim() || !email.value.trim() || !password.value.trim()) {
+        showToast("Please fill in all required fields.", "warning", 3000);
+        return;
+    }
+
     try {
 
         const response = await fetch("/api/register", {
@@ -36,6 +41,7 @@ form.addEventListener("submit", async (e) => {
 
             message.style.color = "green";
             message.textContent = data.message;
+            showToast(data.message || "Registration successful!", "success", 3000);
 
             form.reset();
 
@@ -49,6 +55,7 @@ form.addEventListener("submit", async (e) => {
 
             message.style.color = "red";
             message.textContent = data.message || data.error;
+            showToast(data.message || data.error || "Registration failed.", "error", 3000);
 
         }
 
@@ -56,6 +63,7 @@ form.addEventListener("submit", async (e) => {
 
         message.style.color = "red";
         message.textContent = "Unable to connect to the server.";
+        showToast("Unable to connect to the server.", "error", 3000);
 
     }
 

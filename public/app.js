@@ -113,7 +113,7 @@ requestBtn.addEventListener('click', async function () {
   const token = sessionStorage.getItem('token');
 
   if (!token) {
-    alert('You must be logged in to request a ride.');
+    showToast('You must be logged in to request a ride.', 'warning', 3000);
     window.location.href = '/login.html'; // Redirect to login page
     return;
   }
@@ -151,7 +151,7 @@ requestBtn.addEventListener('click', async function () {
     resetMarkers();
   } catch (err) {
     console.error('Error requesting ride:', err);
-    alert('Error requesting ride: ' + err.message);
+    showToast('Error requesting ride: ' + err.message, 'error', 4000);
   }
 });
 
@@ -184,7 +184,7 @@ async function loadRides() {
     });
   } catch (err) {
     console.error('Error loading rides:', err);
-    alert('Error loading rides: ' + err.message);
+    showToast('Error loading rides: ' + err.message, 'error', 4000);
   }
 }
 

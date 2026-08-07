@@ -9,7 +9,7 @@ if (!token || !user) {
 }
 
 if (user.role !== 'driver') {
-  alert('Access denied. You do not have permission to view this page.');
+  showToast('Access denied. You do not have permission to view this page.', 'error', 3000);
   window.location.href = '/login.html'; // Redirect to login page if not a driver
 }
 

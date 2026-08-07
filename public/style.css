@@ -497,3 +497,91 @@ rides-list li:hover {
   font-size: 14px;
   margin-bottom: 15px;
 }
+
+/* ===========================
+   TOAST NOTIFICATIONS
+   =========================== */
+
+#toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(92vw, 360px);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: auto;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.removing {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.toast-success {
+  background: #1f9d6a;
+}
+
+.toast-error {
+  background: #d64545;
+}
+
+.toast-warning {
+  background: #c97a00;
+}
+
+.toast-info {
+  background: #2f6fbb;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.toast-close {
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  margin-left: 4px;
+}
+
+@media (max-width: 600px) {
+  #toast-container {
+    left: 12px;
+    right: 12px;
+    top: 12px;
+    max-width: none;
+  }
+
+  .toast {
+    width: 100%;
+  }
+}
