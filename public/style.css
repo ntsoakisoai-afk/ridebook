@@ -893,16 +893,38 @@ body {
   border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
+  color: #111827;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .accept-btn {
   background: #00d4aa;
+}
+
+.accept-btn:hover,
+.accept-btn:active,
+.accept-btn:focus {
+  background: #00b894;
   color: #111827;
+  transform: translateY(-1px);
 }
 
 .complete-btn {
   background: #0fbd8c;
+}
+
+.complete-btn:hover,
+.complete-btn:active,
+.complete-btn:focus {
+  background: #0f9d76;
   color: #111827;
+  transform: translateY(-1px);
+}
+
+.accept-btn:focus,
+.complete-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.25);
 }
 
 .no-rides {
