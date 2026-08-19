@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <!-- Protect the page -->
+  <script>
+    const storedUser = sessionStorage.getItem("user");
+    const storedToken = sessionStorage.getItem("token");
+
+    if (!storedToken || !storedUser) {
+      window.location.replace("login.html");
+    }
+  </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>RideBook - Ride History</title>
+
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body class="rider-history-page">
+
+  <div class="rider-history-layout">
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside class="rider-history-sidebar">
+
+      <!-- BRAND -->
+
+      <div class="rider-history-brand">
+        <h1>RideBook</h1>
+      </div>
+
+
+      <!-- USER CARD -->
+
+      <div class="rider-history-user">
+
+        <div class="rider-history-avatar">
+          👤
+        </div>
+
+        <h3 id="riderName">
+          Welcome
+        </h3>
+
+        <span class="rider-role">
+          RIDER
+        </span>
+
+      </div>
+
+
+      <!-- NAVIGATION -->
+
+      <nav class="rider-history-nav">
+
+        <button
+          type="button"
+          onclick="window.location.href='index.html'"
+        >
+          🚗
+          <span>Request a Ride</span>
+        </button>
+
+
+        <button
+          type="button"
+          onclick="window.location.href='profile.html'"
+        >
+          👤
+          <span>My Profile</span>
+        </button>
+
+
+        <button
+          type="button"
+          class="active"
+          onclick="window.location.href='rider-history.html'"
+        >
+          📜
+          <span>Ride History</span>
+        </button>
+
+      </nav>
+
+
+      <!-- DIVIDER -->
+
+      <div class="rider-history-divider"></div>
+
+
+      <!-- LOGOUT -->
+
+      <button
+        type="button"
+        id="logout-btn"
+        class="logout-btn"
+      >
+        🚪
+        <span>Logout</span>
+      </button>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
+    <main class="rider-history-content">
+
+      <!-- HEADER -->
+
+      <header class="history-header">
+
+        <div class="history-title">
+
+          <h1>
+            Ride History
+          </h1>
+
+          <p>
+            View your past and current rides.
+          </p>
+
+        </div>
+
+
+        <!-- FILTER -->
+
+        <div class="history-filter">
+
+          <label for="history-filter">
+            Filter rides
+          </label>
+
+          <select id="history-filter">
+
+            <option value="all">
+              All Rides
+            </option>
+
+            <option value="pending">
+              Pending
+            </option>
+
+            <option value="accepted">
+              Accepted
+            </option>
+
+            <option value="completed">
+              Completed
+            </option>
+
+          </select>
+
+        </div>
+
+      </header>
+
+
+      <!-- =========================
+           RIDE SUMMARY
+      ========================== -->
+
+      <div class="history-summary">
+
+        <span id="ride-count">
+          0 rides
+        </span>
+
+      </div>
+
+
+      <!-- =========================
+           RIDE HISTORY LIST
+      ========================== -->
+
+      <section
+        id="history-rides"
+        class="rider-history-list"
+      >
+
+        <div class="history-loading">
+          Loading your rides...
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+
+  <!-- SCRIPTS -->
+
+  <script src="toast.js"></script>
+  <script src="rider-history.js"></script>
+
+</body>
+
+</html>

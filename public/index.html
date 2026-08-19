@@ -1,90 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
 
-    <script>
-      const storedUser = sessionStorage.getItem("user");
-      const storedToken = sessionStorage.getItem("token");
+  <script>
+    const storedUser = sessionStorage.getItem("user");
+    const storedToken = sessionStorage.getItem("token");
 
-      if (!storedToken || !storedUser) {
-        window.location.replace("login.html");
-      }
-    </script>
+    if (!storedToken || !storedUser) {
+      window.location.replace("login.html");
+    }
+  </script>
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RideBook - Request a Ride</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin="">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  </head>
-  
-  <body>
-    <div id="app">
+  <title>RideBook - Request a Ride</title>
 
-      <div id="sidebar">
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+    crossorigin="anonymous"
+  />
 
-        <h1>RideBook</h1>
+  <link rel="stylesheet" href="style.css">
 
-        <div id="user-panel">
+</head>
 
-          <div class="user-avatar">👤</div>
+<body>
 
-          <h3 id="welcome-user">Welcome, </h3>
+  <div id="app">
 
-          <span class="user-role">Rider</span>
+    <!-- ========================================== -->
+    <!-- SIDEBAR -->
+    <!-- ========================================== -->
+    <div id="sidebar">
 
-          <div class="user-buttons">
+      <h1>RideBook</h1>
 
-            <button id="profile-btn">My Profile</button>
-            <button id="logout-btn">Logout</button>
+      <div id="user-panel">
+
+        <div class="user-avatar">
+          👤
+        </div>
+
+        <h3 id="welcome-user">
+          Welcome,
+        </h3>
+
+        <span class="user-role">
+          Rider
+        </span>
+
+      </div>
+
+      <nav class="rider-history-nav">
+
+        <button
+          class="active"
+          onclick="window.location.href='index.html'"
+        >
+          🚗 Request a Ride
+        </button>
+
+        <button
+          id="profile-btn"
+        >
+          👤 My Profile
+        </button>
+
+        <button
+          onclick="window.location.href='rider-history.html'"
+        >
+          📜 Ride History
+        </button>
+
+      </nav>
+
+      <!-- INSTRUCTION CARD -->
+      <div class="instruction-card">
+
+        <p
+          class="instruction"
+          id="instruction"
+        >
+          Finding your current location...
+        </p>
+
+        <!-- PICKUP -->
+        <div class="location-input-group">
+
+          <label for="pickup-search">
+            📍 Pickup
+          </label>
+
+          <div class="location-input-wrapper">
+
+            <input
+              type="text"
+              id="pickup-search"
+              placeholder="Current location"
+              autocomplete="off"
+            >
+
+            <button
+              type="button"
+              id="use-location-btn"
+              title="Use my current location"
+            >
+              📍
+            </button>
+
           </div>
 
-        </div>
-
-        <div class="instruction-card">
-          <p class="instruction" id="instruction">Click the map to set your pickup location</p>
-        </div>
-
-        <div id="ride-controls" class="hidden">
-
-          <button id="request-btn">Request Ride</button>
-          <button id="reset-btn">Reset</button>
+          <div
+            id="pickup-results"
+            class="location-results"
+          ></div>
 
         </div>
 
-        <div class="ride-filter-panel">
-          <div class="ride-sort-wrapper">
-            <label for="ride-sort" class="ride-sort-label">Sort / Filter:</label>
-            <select id="ride-sort" class="filter-select">
-              <option value="newest">Newest</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="all">All</option>
-            </select>
-          </div>
-          <div class="ride-count" id="ride-count">0 rides</div>
-        </div>
+        <!-- DROPOFF -->
+        <div class="location-input-group">
 
-        <h2>My Rides</h2>
-        <p class="ride-subtitle">View all your past and upcoming rides</p>
+          <label for="dropoff-search">
+            🔴 Dropoff
+          </label>
 
-        <div class="ride-list-panel">
-          <ul id="rides-list"></ul>
+          <input
+            type="text"
+            id="dropoff-search"
+            placeholder="Where are you going?"
+            autocomplete="off"
+          >
+
+          <div
+            id="dropoff-results"
+            class="location-results"
+          ></div>
+
         </div>
 
       </div>
 
-      <div id="map"></div>
+      <!-- FARE INFO -->
+      <div
+        id="fare-info"
+        class="fare-info hidden"
+      >
+
+        <div class="fare-row">
+          <span>Distance</span>
+          <span id="fare-distance">-- km</span>
+        </div>
+
+        <div class="fare-row">
+          <span>Estimated fare</span>
+          <span id="fare-price">R --</span>
+        </div>
+
+      </div>
+
+      <!-- RIDE CONTROLS -->
+      <div
+        id="ride-controls"
+        class="hidden"
+      >
+
+        <button id="request-btn">
+          Request Ride
+        </button>
+
+        <button id="reset-btn">
+          Reset
+        </button>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div class="sidebar-footer">
+
+        <button
+          id="logout-btn"
+          class="logout-btn"
+        >
+          🚪 Logout
+        </button>
+
+      </div>
+
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""></script>
-    <script src="toast.js"></script>
-    <script src="app.js"></script>
-    
-  </body>
+    <!-- ========================================== -->
+    <!-- MAP PANEL -->
+    <!-- ========================================== -->
+    <div id="map-panel">
+
+      <div id="map"></div>
+
+      <!-- RIDE STATUS BACKDROP -->
+      <div id="ride-status-backdrop" class="ride-status-backdrop hidden"></div>
+
+      <!-- ========================================== -->
+      <!-- RIDE STATUS SHEET (Bottom Card) -->
+      <!-- ========================================== -->
+      <div
+        id="ride-status-sheet"
+        class="ride-status-sheet hidden"
+        role="dialog"
+        aria-live="polite"
+        aria-label="Ride status"
+      >
+
+        <div class="sheet-handle"></div>
+
+        <!-- ========================================== -->
+        <!-- STATE 1: SEARCHING -->
+        <!-- ========================================== -->
+        <div id="sheet-searching" class="sheet-state">
+
+          <div class="searching-spinner" aria-hidden="true">
+            <div class="spinner-ring"></div>
+            <div class="spinner-car">🚗</div>
+          </div>
+
+          <h3 class="sheet-title">Looking for drivers...</h3>
+
+          <p class="sheet-subtitle">
+            Estimated wait:
+            <span id="searching-eta-value">2 - 4 min</span>
+          </p>
+
+          <button id="cancel-search-btn" class="btn-cancel-ride">
+            Cancel Ride
+          </button>
+
+        </div>
+
+        <!-- ========================================== -->
+        <!-- STATE 2: DRIVER FOUND -->
+        <!-- ========================================== -->
+        <div id="sheet-driver" class="sheet-state hidden">
+
+          <!-- ETA Banner -->
+          <div class="driver-eta-banner">
+            <span id="driver-eta-value">3 min</span> away
+          </div>
+
+          <!-- ===== DRIVER STATUS TEXT ===== -->
+          <div id="driver-status-text" style="
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            margin-bottom: 4px;
+          ">
+            🚗 Driver is on the way to your pickup location
+          </div>
+
+          <!-- Driver Header -->
+          <div class="driver-header">
+
+            <div id="driver-photo-wrap" class="driver-photo-wrap">
+              <img
+                id="driver-photo"
+                class="driver-photo hidden"
+                src=""
+                alt="Driver photo"
+              >
+              <span id="driver-photo-fallback" class="driver-photo-fallback">👤</span>
+            </div>
+
+            <div class="driver-header-info">
+              <h3 id="driver-name" class="driver-name">--</h3>
+              <span class="driver-rating">
+                ⭐ <span id="driver-rating-value">4.8</span>
+              </span>
+            </div>
+
+          </div>
+
+          <!-- Vehicle Card -->
+          <div class="vehicle-card">
+
+            <!-- Vehicle Photo -->
+            <div id="vehicle-photo-wrap" class="vehicle-photo-wrap">
+              <img
+                id="vehicle-photo"
+                class="vehicle-photo hidden"
+                src=""
+                alt="Vehicle photo"
+              >
+              <span id="vehicle-photo-fallback" class="vehicle-photo-fallback">🚗</span>
+            </div>
+
+            <!-- Vehicle Info -->
+            <div class="vehicle-info">
+              <p id="vehicle-model" class="vehicle-model">--</p>
+              <p class="vehicle-plate">
+                Plate <span id="vehicle-plate-value">--</span>
+              </p>
+            </div>
+
+          </div>
+
+          <!-- Driver Actions -->
+          <div class="driver-actions">
+
+            <button id="call-driver-btn" class="btn-driver-action">
+              📞 Call Driver
+            </button>
+
+            <button id="message-driver-btn" class="btn-driver-action">
+              💬 Message
+            </button>
+
+          </div>
+
+          <!-- Cancel Button -->
+          <button id="cancel-driver-btn" class="btn-cancel-ride-secondary">
+            Cancel Ride
+          </button>
+
+          <!-- ===== ACTION CONTAINER (for End Trip button) ===== -->
+          <div class="action-container" style="display: none; margin-top: 8px;">
+            <!-- Will be filled dynamically by app.js -->
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- RATING MODAL -->
+  <!-- ========================================== -->
+  <div id="rating-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rating-modal-title">
+    <div class="modal-card">
+      <div class="modal-icon">🎉</div>
+      <h2 id="rating-modal-title">Trip Completed!</h2>
+      <p>How was your ride with <strong id="rating-driver-name">your driver</strong>?</p>
+
+      <div class="star-rating" id="star-rating">
+        <span class="star" data-val="1">★</span>
+        <span class="star" data-val="2">★</span>
+        <span class="star" data-val="3">★</span>
+        <span class="star" data-val="4">★</span>
+        <span class="star active" data-val="5">★</span>
+      </div>
+
+      <button id="submit-rating-btn" class="primary-btn" style="width: 100%; margin-top: 15px;">
+        Submit Rating
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- SCRIPTS -->
+  <!-- ========================================== -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+    crossorigin="anonymous"
+  ></script>
+
+  <script src="toast.js"></script>
+  <script src="app.js"></script>
+
+</body>
 </html>

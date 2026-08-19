@@ -40,6 +40,38 @@ const userSchema = new mongoose.Schema({
     phone: {
         type: String,
         default: ""
+    },
+
+    // Driver-specific fields (used to populate the rider's
+    // "driver accepted" ride status card)
+    rating: {
+        type: Number,
+        default: 4.8
+    },
+
+    vehiclePhoto: {
+        type: String,
+        default: ""
+    },
+
+    vehicleMake: {
+        type: String,
+        default: ""
+    },
+
+    vehicleModel: {
+        type: String,
+        default: ""
+    },
+
+    vehicleColor: {
+        type: String,
+        default: ""
+    },
+
+    licensePlate: {
+        type: String,
+        default: ""
     }
 
 }, {

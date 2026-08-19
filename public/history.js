@@ -53,14 +53,12 @@ async function loadHistory() {
 
                 <div class="coords">
                     <strong>Pickup:</strong><br>
-                    ${ride.pickup.lat.toFixed(4)},
-                    ${ride.pickup.lng.toFixed(4)}
+                    ${ride.pickup.address || `${ride.pickup.lat.toFixed(4)}, ${ride.pickup.lng.toFixed(4)}`}
 
                     <br><br>
 
                     <strong>Dropoff:</strong><br>
-                    ${ride.dropoff.lat.toFixed(4)},
-                    ${ride.dropoff.lng.toFixed(4)}
+                    ${ride.dropoff.address || `${ride.dropoff.lat.toFixed(4)}, ${ride.dropoff.lng.toFixed(4)}`}
 
                     <br><br>
 

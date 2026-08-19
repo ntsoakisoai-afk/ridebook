@@ -1,61 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <script>
-            const storedUser = sessionStorage.getItem("user");
-            const storedToken = sessionStorage.getItem("token");
+  <head>
+    <script>
+      const storedUser = sessionStorage.getItem("user");
+      const storedToken = sessionStorage.getItem("token");
 
-            if (!storedToken || !storedUser) {
-                window.location.replace("login.html");
-            }
-        </script>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>My Profile</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body class="profile-page">
-
+      if (!storedToken || !storedUser) {
+        window.location.replace("login.html");
+      }
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Profile</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="profile-page">
     <div class="profile-card">
+      <div class="profile-avatar">👤</div>
 
-        <div class="profile-avatar">👤</div>
+      <h2>My Profile</h2>
 
-        <h2>My Profile</h2>
+      <div class="profile-item">
+        <strong>First Name:</strong>
+        <span id="firstName"></span>
+      </div>
 
-        <div class="profile-item">
-            <strong>First Name:</strong>
-            <span id="firstName"></span>
-        </div>
+      <div class="profile-item">
+        <strong>Last Name:</strong>
+        <span id="lastName"></span>
+      </div>
 
-        <div class="profile-item">
-            <strong>Last Name:</strong>
-            <span id="lastName"></span>
-        </div>
+      <div class="profile-item">
+        <strong>Email:</strong>
+        <span id="email"></span>
+      </div>
 
-        <div class="profile-item">
-            <strong>Email:</strong>
-            <span id="email"></span>
-        </div>
+      <div class="profile-item">
+        <strong>Role:</strong>
+        <span id="role"></span>
+      </div>
 
-        <div class="profile-item">
-            <strong>Role:</strong>
-            <span id="role"></span>
-        </div>
+      <!-- ========================================== -->
+      <!-- DRIVER DETAILS SECTION -->
+      <!-- ========================================== -->
+      <div id="driver-details-section" class="hidden">
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;" />
+        <h3 style="margin-bottom: 12px; font-size: 1.1rem; color: #1e293b;">🚗 Driver & Vehicle Details</h3>
 
-        <div class="profile-actions">
-            <button class="primary-btn" onclick="goHome()">
-                Ride Dashboard
-            </button>
+        <form id="driver-profile-form">
+          <!-- PHONE INPUT -->
+          <div class="form-group" style="text-align: left; margin-bottom: 14px;">
+            <label for="phone"><strong>Phone Number:</strong></label>
+            <input
+              type="tel"
+              id="phone"
+              placeholder="Enter your phone number"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            />
+          </div>
 
-            <button class="danger-btn" onclick="logout()">
-                Logout
-            </button>
-        </div>
+          <!-- VEHICLE PHOTO UPLOAD -->
+          <div class="form-group" style="text-align: left; margin-bottom: 14px;">
+            <label><strong>Vehicle Photo:</strong></label>
+            
+            <!-- Current photo preview -->
+            <div id="currentVehiclePhoto" style="margin: 8px 0;">
+              <img id="vehiclePhotoPreview" src="" alt="Vehicle photo" 
+                   style="max-width: 150px; max-height: 150px; border-radius: 8px; display: none; border: 1px solid #cbd5e1;" />
+              <p id="noPhotoText" style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0;">No photo uploaded yet</p>
+            </div>
 
+            <!-- File input -->
+            <input
+              type="file"
+              id="vehiclePhotoFile"
+              accept="image/*"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            />
+            <small style="color: #94a3b8; font-size: 0.75rem;">Max file size: 5MB. Supported: JPEG, PNG, GIF, WEBP</small>
+            
+            <!-- Upload progress -->
+            <div id="uploadProgress" style="display: none; margin-top: 8px;">
+              <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                <div id="uploadProgressBar" style="width: 0%; height: 100%; background: #00d4aa; transition: width 0.3s;"></div>
+              </div>
+              <p id="uploadStatus" style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Uploading...</p>
+            </div>
+          </div>
+
+          <!-- VEHICLE PHOTO URL (hidden, auto-filled on upload) -->
+          <div class="form-group" style="text-align: left; margin-bottom: 14px; display: none;">
+            <label for="vehiclePhoto"><strong>Vehicle Photo URL:</strong></label>
+            <input
+              type="text"
+              id="vehiclePhoto"
+              placeholder="https://example.com/my-car.jpg"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            />
+          </div>
+
+          <!-- VEHICLE MAKE -->
+          <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+            <label for="vehicleMake"><strong>Vehicle Make:</strong></label>
+            <input
+              type="text"
+              id="vehicleMake"
+              placeholder="e.g. Toyota, Volkswagen"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            />
+          </div>
+
+          <!-- VEHICLE MODEL -->
+          <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+            <label for="vehicleModel"><strong>Vehicle Model:</strong></label>
+            <input
+              type="text"
+              id="vehicleModel"
+              placeholder="e.g. Corolla, Polo Vivo"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            />
+          </div>
+
+          <!-- VEHICLE COLOR -->
+          <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+            <label for="vehicleColor"><strong>Vehicle Color:</strong></label>
+            <input
+              type="text"
+              id="vehicleColor"
+              placeholder="e.g. Silver, White, Black"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
+            />
+          </div>
+
+          <!-- LICENSE PLATE -->
+          <div class="form-group" style="text-align: left; margin-bottom: 14px;">
+            <label for="licensePlate"><strong>Number Plate:</strong></label>
+            <input
+              type="text"
+              id="licensePlate"
+              placeholder="e.g. CA 123-456 / ABC 123 GP"
+              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px; text-transform: uppercase;"
+            />
+          </div>
+
+          <!-- SAVE BUTTON -->
+          <button
+            type="submit"
+            id="saveProfileBtn"
+            class="primary-btn"
+            style="width: 100%; margin-bottom: 10px;"
+          >
+            💾 Save Details
+          </button>
+          <p id="saveMessage" style="font-size: 0.9rem; margin-top: 6px;"></p>
+        </form>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- PROFILE ACTIONS -->
+      <!-- ========================================== -->
+      <div class="profile-actions" style="margin-top: 15px;">
+        <button class="primary-btn" onclick="goHome()">
+          Dashboard
+        </button>
+
+        <button class="danger-btn" onclick="logout()">
+          Logout
+        </button>
+      </div>
     </div>
 
     <script src="toast.js"></script>
     <script src="profile.js"></script>
-
-    </body>
-    </html>
+  </body>
+</html>
