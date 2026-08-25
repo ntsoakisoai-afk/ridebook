@@ -75,6 +75,20 @@ const rideSchema = new mongoose.Schema(
       lat: { type: Number, default: null },
       lng: { type: Number, default: null },
       updatedAt: { type: Date, default: null }
+    },
+
+    // Real wall-clock timestamps for when each phase actually began,
+    // used to anchor the rider-side car animation so it reflects true
+    // elapsed time and resumes correctly after a page reload/refresh
+    // instead of restarting from zero each time.
+    acceptedAt: {
+      type: Date,
+      default: null
+    },
+
+    inProgressAt: {
+      type: Date,
+      default: null
     }
   }
 );

@@ -8,169 +8,271 @@
       if (!storedToken || !storedUser) {
         window.location.replace("login.html");
       }
+
+      // Store role for layout switching
+      const user = JSON.parse(storedUser);
+      window.userRole = user ? user.role : null;
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Profile</title>
     <link rel="stylesheet" href="style.css" />
+    <style>
+      /* Profile specific styles */
+      .profile-edit-form {
+        margin-top: 8px;
+      }
+      
+      .profile-edit-form .form-group {
+        margin-bottom: 14px;
+        text-align: left;
+      }
+      
+      .profile-edit-form .form-group label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--rb-text-muted);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      
+      .profile-edit-form .form-group input,
+      .profile-edit-form .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        background: var(--rb-bg-1);
+        color: var(--rb-text);
+        font-size: 0.9rem;
+        transition: border-color 0.2s;
+      }
+      
+      .profile-edit-form .form-group input:focus,
+      .profile-edit-form .form-group select:focus {
+        outline: none;
+        border-color: var(--rb-teal);
+        box-shadow: 0 0 0 3px var(--rb-teal-glow);
+      }
+      
+      .profile-edit-form .form-group input::placeholder {
+        color: var(--rb-text-muted);
+      }
+      
+      .profile-edit-form .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      
+      .profile-section-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--rb-text);
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .profile-section-title .badge {
+        font-size: 0.55rem;
+        background: var(--rb-teal-glow-soft);
+        color: var(--rb-teal);
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-weight: 600;
+      }
+      
+      .profile-photo-upload {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px;
+        background: var(--rb-surface);
+        border-radius: 8px;
+        border: 1px dashed rgba(255, 255, 255, 0.08);
+      }
+      
+      .profile-photo-upload .preview {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--rb-teal-glow-soft);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        flex-shrink: 0;
+        border: 2px solid var(--rb-border-teal);
+        overflow: hidden;
+      }
+      
+      .profile-photo-upload .preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
+      .profile-photo-upload .upload-controls {
+        flex: 1;
+      }
+      
+      .profile-photo-upload .upload-controls input[type="file"] {
+        width: 100%;
+        padding: 6px;
+        font-size: 0.75rem;
+        color: var(--rb-text-muted);
+        background: transparent;
+        border: none;
+      }
+      
+      .btn-save {
+        width: 100%;
+        padding: 12px;
+        background: var(--rb-teal);
+        color: #06231b;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 4px;
+      }
+      
+      .btn-save:hover {
+        background: #00b894;
+        transform: scale(1.01);
+      }
+      
+      .btn-save:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .profile-edit-form .readonly-field {
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        border-radius: 8px;
+        color: var(--rb-text-secondary);
+        font-size: 0.9rem;
+      }
+      
+      .profile-card {
+        background: var(--rb-card);
+        border-radius: var(--rb-radius-xl);
+        padding: 32px;
+        box-shadow: var(--rb-shadow-card);
+        border: 1px solid var(--rb-border-teal);
+        width: 100%;
+        max-width: 700px;
+        margin: 0 auto;
+      }
+      
+      .profile-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: var(--rb-teal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        flex-shrink: 0;
+        border: 2px solid var(--rb-border-teal);
+      }
+      
+      @media (max-width: 600px) {
+        .profile-edit-form .form-row {
+          grid-template-columns: 1fr;
+        }
+        .profile-card {
+          padding: 20px;
+        }
+      }
+    </style>
   </head>
-  <body class="profile-page">
-    <div class="profile-card">
-      <div class="profile-avatar">👤</div>
+  <body>
 
-      <h2>My Profile</h2>
-
-      <div class="profile-item">
-        <strong>First Name:</strong>
-        <span id="firstName"></span>
+    <!-- ========================================== -->
+    <!-- DRIVER LAYOUT -->
+    <!-- ========================================== -->
+    <div id="driverLayout" style="display: none;" class="driver-page">
+      <div class="driver-layout">
+        <aside class="driver-sidebar">
+          <h2>RideBook</h2>
+          <div class="driver-user">
+            <div class="avatar">👤</div>
+            <h3 id="driverName"></h3>
+            <span class="online">🟢 Online</span>
+          </div>
+          <nav>
+            <button onclick="window.location.href='driver.html'">🚖 Dashboard</button>
+            <button onclick="window.location.href='profile.html'" style="background: var(--rb-teal-glow-soft); color: var(--rb-teal); border-color: var(--rb-border-teal);">👤 My Profile</button>
+            <button onclick="window.location.href='history.html'">📜 Ride History</button>
+            <button class="logout-btn" onclick="sessionStorage.clear();localStorage.clear();window.location.href='login.html'">🚪 Logout</button>
+          </nav>
+        </aside>
+        <main class="driver-content" id="driverProfileContent">
+          <!-- Profile content loaded by JS -->
+          <div style="text-align: center; padding: 40px; color: var(--rb-text-muted);">Loading profile...</div>
+        </main>
       </div>
+    </div>
 
-      <div class="profile-item">
-        <strong>Last Name:</strong>
-        <span id="lastName"></span>
-      </div>
-
-      <div class="profile-item">
-        <strong>Email:</strong>
-        <span id="email"></span>
-      </div>
-
-      <div class="profile-item">
-        <strong>Role:</strong>
-        <span id="role"></span>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- DRIVER DETAILS SECTION -->
-      <!-- ========================================== -->
-      <div id="driver-details-section" class="hidden">
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;" />
-        <h3 style="margin-bottom: 12px; font-size: 1.1rem; color: #1e293b;">🚗 Driver & Vehicle Details</h3>
-
-        <form id="driver-profile-form">
-          <!-- PHONE INPUT -->
-          <div class="form-group" style="text-align: left; margin-bottom: 14px;">
-            <label for="phone"><strong>Phone Number:</strong></label>
-            <input
-              type="tel"
-              id="phone"
-              placeholder="Enter your phone number"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
-            />
+    <!-- ========================================== -->
+    <!-- RIDER LAYOUT -->
+    <!-- ========================================== -->
+    <div id="riderLayout" style="display: none;">
+      <div id="app">
+        <div id="sidebar">
+          <h1>RideBook</h1>
+          <div id="user-panel">
+            <div class="user-avatar">👤</div>
+            <h3 id="welcome-user">Welcome,</h3>
+            <span class="user-role">Rider</span>
           </div>
-
-          <!-- VEHICLE PHOTO UPLOAD -->
-          <div class="form-group" style="text-align: left; margin-bottom: 14px;">
-            <label><strong>Vehicle Photo:</strong></label>
-            
-            <!-- Current photo preview -->
-            <div id="currentVehiclePhoto" style="margin: 8px 0;">
-              <img id="vehiclePhotoPreview" src="" alt="Vehicle photo" 
-                   style="max-width: 150px; max-height: 150px; border-radius: 8px; display: none; border: 1px solid #cbd5e1;" />
-              <p id="noPhotoText" style="color: #94a3b8; font-size: 0.85rem; margin: 4px 0;">No photo uploaded yet</p>
-            </div>
-
-            <!-- File input -->
-            <input
-              type="file"
-              id="vehiclePhotoFile"
-              accept="image/*"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
-            />
-            <small style="color: #94a3b8; font-size: 0.75rem;">Max file size: 5MB. Supported: JPEG, PNG, GIF, WEBP</small>
-            
-            <!-- Upload progress -->
-            <div id="uploadProgress" style="display: none; margin-top: 8px;">
-              <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
-                <div id="uploadProgressBar" style="width: 0%; height: 100%; background: #00d4aa; transition: width 0.3s;"></div>
-              </div>
-              <p id="uploadStatus" style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Uploading...</p>
-            </div>
+          <nav class="rider-history-nav">
+            <button onclick="window.location.href='index.html'">🚗 Request a Ride</button>
+            <button onclick="window.location.href='profile.html'" style="background: var(--rb-teal-glow-soft); color: var(--rb-teal); border-color: var(--rb-border-teal);">👤 My Profile</button>
+            <button onclick="window.location.href='rider-history.html'">📜 Ride History</button>
+          </nav>
+          <div class="sidebar-footer">
+            <button id="logout-btn" class="logout-btn" onclick="sessionStorage.clear();localStorage.clear();window.location.href='login.html'">🚪 Logout</button>
           </div>
-
-          <!-- VEHICLE PHOTO URL (hidden, auto-filled on upload) -->
-          <div class="form-group" style="text-align: left; margin-bottom: 14px; display: none;">
-            <label for="vehiclePhoto"><strong>Vehicle Photo URL:</strong></label>
-            <input
-              type="text"
-              id="vehiclePhoto"
-              placeholder="https://example.com/my-car.jpg"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
-            />
+        </div>
+        <div id="map-panel" style="display: flex; align-items: flex-start; justify-content: center; background: var(--rb-bg-0); padding: 40px 20px; overflow-y: auto; height: 100vh;">
+          <div style="width: 100%; max-width: 700px;" id="riderProfileContent">
+            <!-- Profile content loaded by JS -->
+            <div style="text-align: center; padding: 40px; color: var(--rb-text-muted);">Loading profile...</div>
           </div>
-
-          <!-- VEHICLE MAKE -->
-          <div class="form-group" style="text-align: left; margin-bottom: 12px;">
-            <label for="vehicleMake"><strong>Vehicle Make:</strong></label>
-            <input
-              type="text"
-              id="vehicleMake"
-              placeholder="e.g. Toyota, Volkswagen"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
-            />
-          </div>
-
-          <!-- VEHICLE MODEL -->
-          <div class="form-group" style="text-align: left; margin-bottom: 12px;">
-            <label for="vehicleModel"><strong>Vehicle Model:</strong></label>
-            <input
-              type="text"
-              id="vehicleModel"
-              placeholder="e.g. Corolla, Polo Vivo"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
-            />
-          </div>
-
-          <!-- VEHICLE COLOR -->
-          <div class="form-group" style="text-align: left; margin-bottom: 12px;">
-            <label for="vehicleColor"><strong>Vehicle Color:</strong></label>
-            <input
-              type="text"
-              id="vehicleColor"
-              placeholder="e.g. Silver, White, Black"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px;"
-            />
-          </div>
-
-          <!-- LICENSE PLATE -->
-          <div class="form-group" style="text-align: left; margin-bottom: 14px;">
-            <label for="licensePlate"><strong>Number Plate:</strong></label>
-            <input
-              type="text"
-              id="licensePlate"
-              placeholder="e.g. CA 123-456 / ABC 123 GP"
-              style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px; text-transform: uppercase;"
-            />
-          </div>
-
-          <!-- SAVE BUTTON -->
-          <button
-            type="submit"
-            id="saveProfileBtn"
-            class="primary-btn"
-            style="width: 100%; margin-bottom: 10px;"
-          >
-            💾 Save Details
-          </button>
-          <p id="saveMessage" style="font-size: 0.9rem; margin-top: 6px;"></p>
-        </form>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- PROFILE ACTIONS -->
-      <!-- ========================================== -->
-      <div class="profile-actions" style="margin-top: 15px;">
-        <button class="primary-btn" onclick="goHome()">
-          Dashboard
-        </button>
-
-        <button class="danger-btn" onclick="logout()">
-          Logout
-        </button>
+        </div>
       </div>
     </div>
 
     <script src="toast.js"></script>
     <script src="profile.js"></script>
+
+    <script>
+      // Show the correct layout based on user role
+      (function() {
+        const user = JSON.parse(sessionStorage.getItem("user") || "null");
+        if (user && user.role === "driver") {
+          document.getElementById("driverLayout").style.display = "block";
+          document.getElementById("riderLayout").style.display = "none";
+        } else {
+          document.getElementById("riderLayout").style.display = "block";
+          document.getElementById("driverLayout").style.display = "none";
+        }
+      })();
+    </script>
+
   </body>
 </html>
