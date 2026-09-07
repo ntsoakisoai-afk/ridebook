@@ -150,27 +150,86 @@ app.get('/api/rides', auth, async (req, res) => {
   }
 });
 
-// ---------- GET SINGLE RIDE BY ID (ONLY ONE DEFINITION) ----------
+// Get a single ride by ID - FIXED
 app.get('/api/rides/:id', auth, async (req, res) => {
   try {
+    console.log('🔍 GET /api/rides/:id called:');
+    console.log('  - Ride ID:', req.params.id);
+    console.log('  - User ID:', req.user.id);
+    console.log('  - User Role:', req.user.role);
+
     const ride = await Ride.findById(req.params.id)
       .populate('driver', 'firstName lastName phone rating vehicleMake vehicleModel vehicleColor licensePlate vehiclePhoto')
       .populate('rider', 'firstName lastName phone');
 
     if (!ride) {
+      console.log('❌ Ride not found');
       return res.status(404).json({ message: 'Ride not found' });
     }
 
-    // Check authorization
-    if (req.user.role === 'driver' && ride.driver) {
-      const driverId = ride.driver._id ? ride.driver._id.toString() : ride.driver.toString();
-      if (driverId !== req.user.id) {
-        return res.status(403).json({ message: 'Not authorized' });
+    console.log('  - Ride status:', ride.status);
+    console.log('  - Ride driver (raw):', ride.driver);
+
+    // ==========================================================
+    // FIX: Check authorization properly
+    // ==========================================================
+    
+    // If user is a driver, check if they are the assigned driver
+    if (req.user.role === 'driver') {
+      // Handle both populated and unpopulated driver
+      let rideDriverId = null;
+      if (ride.driver) {
+        if (typeof ride.driver === 'object' && ride.driver._id) {
+          rideDriverId = ride.driver._id.toString();
+        } else if (typeof ride.driver === 'string') {
+          rideDriverId = ride.driver;
+        } else if (typeof ride.driver === 'object' && ride.driver.toString) {
+          rideDriverId = ride.driver.toString();
+        }
+      }
+      
+      const userId = req.user.id.toString();
+      
+      console.log('  - Ride driver ID (string):', rideDriverId);
+      console.log('  - User ID (string):', userId);
+      
+      // If driver is assigned and doesn't match, deny access
+      if (rideDriverId && rideDriverId !== userId) {
+        console.log('❌ Driver mismatch - access denied');
+        return res.status(403).json({ 
+          message: 'Not authorized to view this ride',
+          rideDriver: rideDriverId,
+          userId: userId
+        });
+      }
+      
+      // If no driver assigned yet, allow access (for pending rides)
+      if (!rideDriverId && ride.status === 'pending') {
+        console.log('✅ No driver assigned yet - allowing access for pending ride');
+        // Allow driver to view pending rides
       }
     }
 
-    console.log('📍 Ride fetched:', ride._id, 'driver:', ride.driver ? ride.driver._id : 'none');
+    // If user is a rider, check if they are the rider
+    if (req.user.role === 'rider') {
+      let rideRiderId = null;
+      if (ride.rider) {
+        if (typeof ride.rider === 'object' && ride.rider._id) {
+          rideRiderId = ride.rider._id.toString();
+        } else if (typeof ride.rider === 'string') {
+          rideRiderId = ride.rider;
+        }
+      }
+      
+      const userId = req.user.id.toString();
+      
+      if (rideRiderId && rideRiderId !== userId) {
+        console.log('❌ Rider mismatch - access denied');
+        return res.status(403).json({ message: 'Not authorized to view this ride' });
+      }
+    }
 
+    console.log('✅ Access granted');
     res.json(ride);
   } catch (err) {
     console.error('Error fetching ride:', err);
@@ -186,9 +245,10 @@ app.get('/api/driver/history', auth, async (req, res) => {
     }
 
     const rides = await Ride.find({
-      driver: req.user.id,
-      status: "completed"
-    }).sort({ createdAt: -1 });
+      driver: req.user.id
+    })
+      .populate('rider', 'firstName lastName phone rating')
+      .sort({ createdAt: -1 });
 
     res.json(rides);
   } catch (err) {
@@ -452,12 +512,14 @@ app.post('/api/rides/:id/rate', auth, async (req, res) => {
   }
 });
 
+// Update driver location - FIXED
 app.patch('/api/rides/:id/location', auth, async (req, res) => {
   try {
     const { lat, lng } = req.body;
+    const rideId = req.params.id;
     
-    console.log('📍 Location update request:');
-    console.log('  - Ride ID:', req.params.id);
+    console.log('📍 LOCATION UPDATE:');
+    console.log('  - Ride ID:', rideId);
     console.log('  - User ID:', req.user.id);
     console.log('  - Location:', lat, lng);
 
@@ -465,32 +527,54 @@ app.patch('/api/rides/:id/location', auth, async (req, res) => {
       return res.status(400).json({ message: 'lat and lng must be numbers' });
     }
 
-    const ride = await Ride.findById(req.params.id);
-
+    const ride = await Ride.findById(rideId);
+    
     if (!ride) {
-      console.log('❌ Ride not found:', req.params.id);
+      console.log('❌ Ride not found');
       return res.status(404).json({ message: 'Ride not found' });
     }
 
     // ==========================================================
-    // CRITICAL FIX: Debug what's actually in the database
+    // FIX: Only allow location updates for active rides
     // ==========================================================
-    console.log('  - Ride driver field:', ride.driver);
-    console.log('  - Ride driver type:', typeof ride.driver);
-    console.log('  - Ride status:', ride.status);
-    console.log('  - User ID type:', typeof req.user.id);
+    if (ride.status !== 'accepted' && ride.status !== 'in_progress') {
+      console.log('❌ Ride status is', ride.status, '- cannot update location');
+      return res.status(403).json({ 
+        message: `Cannot update location for ${ride.status} ride`
+      });
+    }
 
     // ==========================================================
-    // FIX: Properly compare IDs (handle ObjectId and string)
+    // FIX: Check driver authorization properly
     // ==========================================================
-    const rideDriverId = ride.driver ? ride.driver.toString() : null;
+    let rideDriverId = null;
+    if (ride.driver) {
+      if (typeof ride.driver === 'object' && ride.driver._id) {
+        rideDriverId = ride.driver._id.toString();
+      } else if (typeof ride.driver === 'string') {
+        rideDriverId = ride.driver;
+      } else if (typeof ride.driver === 'object' && ride.driver.toString) {
+        rideDriverId = ride.driver.toString();
+      }
+    }
+    
     const userId = req.user.id.toString();
-
-    console.log('  - Ride driver ID (string):', rideDriverId);
-    console.log('  - User ID (string):', userId);
-
-    if (!rideDriverId || rideDriverId !== userId) {
-      console.log(`❌ Driver mismatch: ride.driver=${rideDriverId}, user=${userId}`);
+    
+    console.log('  - Ride driver ID:', rideDriverId);
+    console.log('  - User ID:', userId);
+    
+    // If no driver assigned, auto-assign
+    if (!rideDriverId) {
+      console.log('⚠️ No driver assigned - auto-assigning current user');
+      ride.driver = req.user.id;
+      rideDriverId = userId;
+      await ride.save();
+      console.log('✅ Driver auto-assigned');
+    }
+    
+    // Check if current user is the driver
+    if (rideDriverId !== userId) {
+      console.log('❌ Driver mismatch');
       return res.status(403).json({ 
         message: 'You are not the driver for this ride.',
         rideDriver: rideDriverId,
@@ -498,14 +582,15 @@ app.patch('/api/rides/:id/location', auth, async (req, res) => {
       });
     }
 
-    // ==========================================================
-    // UPDATE THE LOCATION
-    // ==========================================================
+    // Update location
     ride.driverLocation = { lat, lng, updatedAt: new Date() };
     await ride.save();
 
     console.log('✅ Location updated successfully');
-    res.json({ message: 'Location updated', driverLocation: ride.driverLocation });
+    res.json({ 
+      message: 'Location updated', 
+      driverLocation: ride.driverLocation 
+    });
 
   } catch (err) {
     console.error('Error updating location:', err);

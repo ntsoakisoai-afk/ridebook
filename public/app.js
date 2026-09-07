@@ -524,13 +524,7 @@ async function fetchRouteCoords(pointA, pointB) {
 }
 
 // ===============================
-// SIMULATED MOTION FALLBACK (RIDER VIEW)
-//
-// Real driver GPS (ride.driverLocation) is always used when it's
-// present and fresh. This only kicks in when the real feed goes
-// stale/missing, so the car keeps moving smoothly toward the next
-// stop instead of freezing — then hands back to real GPS the moment
-// it updates again.
+// SIMULATED MOTION FALLBACK (RIDER VIEW) - FIXED
 // ===============================
 
 let simRideId = null;
@@ -540,10 +534,11 @@ let simStartTime = null;
 let simDurationMs = null;
 let simRafId = null;
 let simCompletedForPhase = false;
-let simClaimed = false; // true the instant a phase is claimed, even before its route fetch resolves — prevents a slow fetch from being cancelled/restarted by the next 5s poll
+let simClaimed = false;
 let simEtaIntervalId = null;
 
 function cancelSimulatedMotion() {
+  console.log('🧹 cancelSimulatedMotion called');
   if (simRafId) {
     cancelAnimationFrame(simRafId);
     simRafId = null;
@@ -561,16 +556,10 @@ function cancelSimulatedMotion() {
   simClaimed = false;
 }
 
-// Writes the current simulated (or real) minutes-remaining into
-// whichever ETA element is currently in the DOM. Runs on its own
-// timer so the countdown keeps ticking between the 5s polls, and
-// survives the sheet's innerHTML being rebuilt each poll since it
-// looks the element up fresh every tick rather than holding a
-// stale reference.
 function tickSimulatedEta() {
   if (!simStartTime || !simDurationMs) return;
 
-  const elapsed = performance.now() - simStartTime;
+  const elapsed = Date.now() - simStartTime;
   const remainingMs = Math.max(simDurationMs - elapsed, 0);
   const minutesRemaining = Math.max(Math.ceil(remainingMs / 60000), 0);
 
@@ -582,10 +571,6 @@ function tickSimulatedEta() {
   }
 }
 
-// Returns { lat, lng, bearingDeg } at fraction t (0..1) along a
-// multi-point route, walking real segment distances rather than
-// just picking the nearest coordinate index — keeps speed constant
-// even where OSRM points are unevenly spaced.
 function pointAlongRoute(coords, t) {
   if (!coords || coords.length === 0) return null;
   if (coords.length === 1) {
@@ -628,48 +613,71 @@ function pointAlongRoute(coords, t) {
   return { lat: last[0], lng: last[1], bearingDeg: 0 };
 }
 
-// Directly places the marker (no tween of its own — used by the
-// simulation's per-frame loop, which already computes the
-// interpolated point itself).
 function placeDriverMarkerAt(lat, lng, bearingDeg, isStale) {
-  if (!driverMarker) return;
-  driverMarker.setIcon(createRiderCarIcon(bearingDeg, isStale));
+  if (!driverMarker) {
+    console.warn('⚠️ driverMarker is null, cannot place');
+    return;
+  }
+  console.log('📍 Marker placed at:', lat.toFixed(6), lng.toFixed(6));
+  driverMarker.setIcon(createRiderCarIcon(bearingDeg || 0, isStale || false));
   driverMarker.setLatLng([lat, lng]);
   lastDriverPositionRider = { lat, lng };
 }
 
+// ==========================================================
+// FIXED: startSimulatedApproach - Uses same logic as driver side
+// ==========================================================
+
 async function startSimulatedApproach(ride, phaseKey, targetStop) {
+  console.log('🚗 startSimulatedApproach called:', phaseKey, 'ride:', ride._id);
 
-  // Already claimed for this exact ride+phase
-  if (simRideId === ride._id && simPhase === phaseKey && simClaimed) {
-    return;
-  }
-
+  // Cancel any existing simulation
   cancelSimulatedMotion();
+
+  // Set up new simulation state
   simRideId = ride._id;
   simPhase = phaseKey;
   simClaimed = true;
+  simCompletedForPhase = false;
 
-  // Start from wherever the car is currently displayed
+  // Get start position
   let startPoint = lastDriverPositionRider;
-
   if (!startPoint) {
     startPoint = phaseKey === 'to_pickup'
       ? { lat: ride.pickup.lat + 0.0025, lng: ride.pickup.lng + 0.0025 }
       : { lat: ride.pickup.lat, lng: ride.pickup.lng };
   }
 
+  console.log('📍 Start point:', startPoint);
+
+  // Create marker if needed
+  if (!driverMarker) {
+    console.log('🆕 Creating driver marker');
+    const driverName = ride.driver?.firstName || 'Driver';
+    driverMarker = L.marker([startPoint.lat, startPoint.lng], {
+      icon: createRiderCarIcon(0, false)
+    }).addTo(map);
+    driverMarker.bindPopup(`<b>${driverName}</b> is on the way!`);
+    lastDriverPositionRider = { lat: startPoint.lat, lng: startPoint.lng };
+  }
+
+  // Fetch route
+  console.log('🔄 Fetching route from OSRM...');
   const route = await fetchRouteCoords(startPoint, targetStop);
+  
+  if (simRideId !== ride._id || simPhase !== phaseKey) {
+    console.log('⚠️ Simulation cancelled during fetch');
+    return;
+  }
 
-  if (simRideId !== ride._id || simPhase !== phaseKey) return;
-
-  const coords = route
-    ? route.coords
-    : [[startPoint.lat, startPoint.lng], [targetStop.lat, targetStop.lng]];
-
+  const coords = route ? route.coords : [[startPoint.lat, startPoint.lng], [targetStop.lat, targetStop.lng]];
   const distanceKm = route ? route.distanceKm : haversineDistanceKm(startPoint, targetStop);
 
-  // Determine duration
+  console.log('📍 Route fetched:', coords.length, 'points,', distanceKm.toFixed(2), 'km');
+
+  // ==========================================================
+  // SAME DURATION CALCULATION AS DRIVER SIDE (3x speed)
+  // ==========================================================
   let estimatedMs;
   if (phaseKey === 'to_dropoff' && ride.durationMin) {
     estimatedMs = ride.durationMin * 60 * 1000;
@@ -679,15 +687,15 @@ async function startSimulatedApproach(ride, phaseKey, targetStop) {
     estimatedMs = (distanceKm / 30) * 3600 * 1000;
   }
 
-  const SIM_SPEED_MULTIPLIER = 3; // 3x faster than real-world timing
+  const SIM_SPEED_MULTIPLIER = 3;
   estimatedMs = estimatedMs / SIM_SPEED_MULTIPLIER;
+  simDurationMs = Math.max(estimatedMs, 12000);
+  
+  console.log('⏱ Duration:', simDurationMs / 1000, 'seconds');
 
-  simRouteCoords = coords;
-  simDurationMs = Math.max(estimatedMs, 12000); // floor lowered to match the faster pace
-
-  // ===== USE SERVER TIMESTAMP FOR PERSISTENCE =====
-  // This is the key fix: use the database timestamp so the
-  // animation picks up where it left off on page reload.
+  // ==========================================================
+  // SAME START TIME AS DRIVER SIDE
+  // ==========================================================
   let serverTimestamp = null;
   if (phaseKey === 'to_pickup') {
     serverTimestamp = ride.acceptedAt ? new Date(ride.acceptedAt) : null;
@@ -695,63 +703,85 @@ async function startSimulatedApproach(ride, phaseKey, targetStop) {
     serverTimestamp = ride.inProgressAt ? new Date(ride.inProgressAt) : null;
   }
 
-  // If no server timestamp exists yet, use current time
-  // (this handles the first time the phase starts)
   if (!serverTimestamp) {
     serverTimestamp = new Date();
   }
 
-  // Use the server timestamp as the start time
   simStartTime = serverTimestamp.getTime();
+  simRouteCoords = coords;
 
-  // Calculate elapsed time so far (for page reloads)
+  // Calculate progress so far
   const elapsedMs = Date.now() - simStartTime;
   const progressSoFar = Math.min(1, elapsedMs / simDurationMs);
+  console.log('📊 Progress so far:', (progressSoFar * 100).toFixed(0), '%');
 
-  // If already completed, snap to end
+  // If already completed
   if (progressSoFar >= 1) {
     const last = coords[coords.length - 1];
+    console.log('✅ Already complete, snapping to end');
     placeDriverMarkerAt(last[0], last[1], 0, false);
     simCompletedForPhase = true;
     simClaimed = false;
     return;
   }
 
+  // Apply progress so far
+  const pos = pointAlongRoute(simRouteCoords, progressSoFar);
+  if (pos) {
+    console.log('📍 Placing marker at progress:', progressSoFar);
+    placeDriverMarkerAt(pos.lat, pos.lng, pos.bearingDeg, false);
+  }
+
+  // Start ETA timer
   if (simEtaIntervalId) clearInterval(simEtaIntervalId);
   simEtaIntervalId = setInterval(tickSimulatedEta, 1000);
   tickSimulatedEta();
 
-  // Apply the progress so far immediately (no jump, just resume)
-  const pos = pointAlongRoute(simRouteCoords, progressSoFar);
-  if (pos) {
-    placeDriverMarkerAt(pos.lat, pos.lng, pos.bearingDeg, false);
-  }
+  // ==========================================================
+  // ANIMATION LOOP - Same as driver side
+  // ==========================================================
+  
+  function animateStep(now) {
+    // Check if animation should continue
+    if (simRideId !== ride._id || simPhase !== phaseKey) {
+      console.log('⚠️ Animation stopped - phase/ride changed');
+      return;
+    }
 
-  function step(now) {
-    if (simRideId !== ride._id || simPhase !== phaseKey) return;
-
-    // Use the server timestamp for elapsed time
+    // Calculate current progress using Date.now() timestamp
     const elapsed = now - simStartTime;
     const t = Math.min(elapsed / simDurationMs, 1);
-    const pos = pointAlongRoute(simRouteCoords, t);
 
+    // Get position along route
+    const pos = pointAlongRoute(simRouteCoords, t);
+    
     if (pos) {
       placeDriverMarkerAt(pos.lat, pos.lng, pos.bearingDeg, false);
     }
 
-    if (t < 1) {
-      simRafId = requestAnimationFrame(step);
-    } else {
-      simRafId = null;
+    // Check if complete
+    if (t >= 1) {
+      console.log('✅ Animation complete!');
       simCompletedForPhase = true;
+      simClaimed = false;
+      
+      // Snap to final position
+      const last = simRouteCoords[simRouteCoords.length - 1];
+      placeDriverMarkerAt(last[0], last[1], 0, false);
+      return;
     }
+
+    // Continue animation
+    simRafId = requestAnimationFrame(animateStep);
   }
 
-  simRafId = requestAnimationFrame(step);
+  // Start the animation loop
+  console.log('🚀 Starting animation loop');
+  simRafId = requestAnimationFrame(animateStep);
 }
 
 // ===============================
-// CAR ANIMATION FOR RIDER VIEW
+// CAR ANIMATION FOR RIDER VIEW (smooth transition between GPS points)
 // ===============================
 
 function animateRiderCar(newLat, newLng, isStale = false) {
@@ -759,7 +789,6 @@ function animateRiderCar(newLat, newLng, isStale = false) {
 
   const newPos = { lat: newLat, lng: newLng };
 
-  // If no previous position, just set it
   if (!lastDriverPositionRider) {
     const icon = createRiderCarIcon(0, isStale);
     driverMarker.setIcon(icon);
@@ -768,17 +797,14 @@ function animateRiderCar(newLat, newLng, isStale = false) {
     return;
   }
 
-  // Calculate angle for rotation
   const angle = Math.atan2(
     newLat - lastDriverPositionRider.lat,
     newLng - lastDriverPositionRider.lng
   ) * (180 / Math.PI);
 
-  // Update icon with rotation
   const newIcon = createRiderCarIcon(angle, isStale);
   driverMarker.setIcon(newIcon);
 
-  // Animate position
   const startLat = lastDriverPositionRider.lat;
   const startLng = lastDriverPositionRider.lng;
   const endLat = newLat;
@@ -842,7 +868,7 @@ function updateDriverStateDisplay(ride, state) {
 }
 
 // ===============================
-// UPDATE DRIVER MARKER WITH ANIMATION
+// DRIVER MARKER WITH ANIMATION - FIXED
 // ===============================
 
 function updateDriverMarker(ride, driver, isDriverPopulated) {
@@ -851,11 +877,21 @@ function updateDriverMarker(ride, driver, isDriverPopulated) {
   const phaseKey = ride.status === 'in_progress' ? 'to_dropoff' : 'to_pickup';
   const targetStop = phaseKey === 'to_dropoff' ? ride.dropoff : ride.pickup;
 
-  // A phase change (accepted -> in_progress) or a different ride
-  // means any in-flight simulation for the old phase no longer
-  // applies — real GPS or a fresh simulation will take over below.
-  if (simRideId && (simRideId !== ride._id || simPhase !== phaseKey)) {
+  // ==========================================================
+  // CRITICAL FIX: If phase changed for the same ride, we MUST
+  // restart the animation with the new phase
+  // ==========================================================
+  if (simRideId && simRideId === ride._id && simPhase !== phaseKey) {
+    console.log('🔄 Phase changed for same ride, resetting animation');
     cancelSimulatedMotion();
+  }
+
+  // Check if animation is already running for this ride+phase
+  const animationAlreadyRunning = (simRafId || simClaimed) && simRideId === ride._id && simPhase === phaseKey;
+  
+  if (animationAlreadyRunning) {
+    console.log('⏭️ Animation already running for this ride+phase, skipping');
+    return;
   }
 
   const hasLiveLoc = !!(ride.driverLocation && ride.driverLocation.lat != null);
@@ -868,9 +904,11 @@ function updateDriverMarker(ride, driver, isDriverPopulated) {
 
   const driverNameForPopup = isDriverPopulated ? (driver.firstName || 'Driver') : 'Driver';
 
-  // ---- Fresh real GPS available: use it, and stop any simulation ----
+  // ==========================================================
+  // PRIORITY 1: Fresh real GPS available: use it
+  // ==========================================================
   if (hasLiveLoc && !isStale) {
-
+    console.log('📍 Fresh GPS available, using it');
     cancelSimulatedMotion();
 
     const newLat = ride.driverLocation.lat;
@@ -885,12 +923,20 @@ function updateDriverMarker(ride, driver, isDriverPopulated) {
     } else {
       animateRiderCar(newLat, newLng, false);
     }
-
     return;
   }
 
-  // ---- No fresh real GPS: fall back to simulated motion along the
-  // road route toward the current phase's target stop ----
+  // ==========================================================
+  // PRIORITY 2: No fresh GPS - use shared simulation
+  // ==========================================================
+  
+  // If animation is already running (after phase check), don't restart
+  if (simRafId || simClaimed) {
+    console.log('⏭️ Simulation already running, skipping');
+    return;
+  }
+
+  console.log('📍 No fresh GPS, starting simulation for phase:', phaseKey);
 
   if (!driverMarker) {
     const startLoc = { lat: ride.pickup.lat + 0.0025, lng: ride.pickup.lng + 0.0025 };
@@ -905,9 +951,6 @@ function updateDriverMarker(ride, driver, isDriverPopulated) {
     startSimulatedApproach(ride, phaseKey, targetStop);
   }
 
-  // If we DO have a real location but it's just stale (not fully
-  // absent), let the rider know without freezing the marker — the
-  // simulation above keeps it moving in the meantime.
   if (hasLiveLoc && isStale) {
     driverMarker.bindPopup(
       `<b>${driverNameForPopup}</b><br><small>Live location hasn't updated recently — showing estimated position.</small>`
@@ -916,12 +959,19 @@ function updateDriverMarker(ride, driver, isDriverPopulated) {
 }
 
 // ===============================
-// ACTIVE STATUS FLOW
+// ACTIVE STATUS FLOW - FIXED
 // ===============================
 
 function startRideStatusFlow(ride) {
   if (!ride) return;
-  activeRideId = ride._id;
+  
+  // Store the ride ID for comparison
+  const rideId = ride._id;
+  
+  // Only set activeRideId if it's different
+  if (activeRideId !== rideId) {
+    activeRideId = rideId;
+  }
 
   setBookingFormEnabled(false);
 
@@ -1055,9 +1105,6 @@ function startRideStatusFlow(ride) {
 
     let distanceToPickup = 'Calculating...';
     let etaMinutes = '...';
-    // Prefer real GPS; fall back to the simulated marker's current
-    // position so the numbers shown here stay consistent with
-    // whatever the car is actually doing on the map.
     const posForEta = (ride.driverLocation && ride.driverLocation.lat != null)
       ? { lat: ride.driverLocation.lat, lng: ride.driverLocation.lng }
       : lastDriverPositionRider;
@@ -1158,8 +1205,21 @@ function startRideStatusFlow(ride) {
       newCancelBtn.addEventListener('click', handleCancelRide);
     }
 
-    // Show driver marker with animation
-    updateDriverMarker(ride, driver, isDriverPopulated);
+    // ==========================================================
+    // FIX: Start animation for ACCEPTED state
+    // ==========================================================
+    const phaseKeyAccepted = 'to_pickup';
+    const targetStopAccepted = ride.pickup;
+    
+    if (targetStopAccepted) {
+      // Only start animation if not already running
+      if (!simRafId && !simClaimed) {
+        console.log('🚗 Starting animation for ACCEPTED state');
+        updateDriverMarker(ride, driver, isDriverPopulated);
+      } else {
+        console.log('⏭️ Animation already running, skipping restart');
+      }
+    }
   }
 
   // ==========================================================
@@ -1183,8 +1243,6 @@ function startRideStatusFlow(ride) {
 
     let distanceToDest = 'Calculating...';
     let progressPercent = 0;
-    // Prefer real GPS; fall back to the simulated marker's current
-    // position, same reasoning as the pickup-stage ETA above.
     const posForProgress = (ride.driverLocation && ride.driverLocation.lat != null)
       ? { lat: ride.driverLocation.lat, lng: ride.driverLocation.lng }
       : lastDriverPositionRider;
@@ -1315,12 +1373,6 @@ function startRideStatusFlow(ride) {
     const endTripBtn = document.getElementById('end-trip-btn');
     if (endTripBtn) {
       endTripBtn.addEventListener('click', () => {
-
-        // Soft check only — never a hard block. If the car (real or
-        // simulated) still looks meaningfully far from the dropoff,
-        // ask for confirmation instead of silently allowing it, but
-        // always let it proceed either way (GPS gaps, early drop-offs,
-        // and rider requests are normal and shouldn't be locked out).
         const currentPos = lastDriverPositionRider;
         const farFromDropoff = currentPos && ride.dropoff
           ? haversineDistanceKm(currentPos, ride.dropoff) > 0.3
@@ -1337,8 +1389,21 @@ function startRideStatusFlow(ride) {
       });
     }
 
-    // Update driver marker with animation
-    updateDriverMarker(ride, driver, isDriverPopulated);
+    // ==========================================================
+    // FIX: Start animation for IN_PROGRESS state
+    // ==========================================================
+    const phaseKeyInProgress = 'to_dropoff';
+    const targetStopInProgress = ride.dropoff;
+    
+    if (targetStopInProgress) {
+      // Only start animation if not already running
+      if (!simRafId && !simClaimed) {
+        console.log('🚗 Starting animation for IN_PROGRESS state');
+        updateDriverMarker(ride, driver, isDriverPopulated);
+      } else {
+        console.log('⏭️ Animation already running, skipping restart');
+      }
+    }
 
     if (routeLine && ride.pickup && ride.dropoff) {
       map.removeLayer(routeLine);
@@ -1644,62 +1709,37 @@ function resetAppToInitialState() {
   getCurrentLocation();
 }
 
-if (submitRatingBtn) {
-  submitRatingBtn.onclick = async function (e) {
-    e.preventDefault();
-    submitRatingBtn.disabled = true;
-    submitRatingBtn.textContent = 'Submitting...';
+// ===============================
+// STATUS CHANGE NOTIFICATIONS
+// ===============================
 
-    let targetRideId = completedRideToRate?._id || activeRideId;
-    if (!targetRideId && Array.isArray(passengerRides)) {
-      const lastCompleted = passengerRides.find(r => r.status === 'completed');
-      if (lastCompleted) targetRideId = lastCompleted._id;
-    }
+let lastNotifiedRideStatus = {};
 
-    const ratingModalEl = document.getElementById('rating-modal');
-    if (ratingModalEl) ratingModalEl.classList.add('hidden');
+function notifyRiderOfStatusChange(ride) {
+  if (!ride || !ride._id) return;
 
-    if (targetRideId && token) {
-      markRideAsRated(targetRideId);
-      try {
-        await fetch(`/api/rides/${targetRideId}/rate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ rating: selectedRating })
-        });
-      } catch (err) {
-        console.warn('Rating submission error:', err);
-      }
-    }
+  const previous = lastNotifiedRideStatus[ride._id];
+  const current = ride.status;
 
-    submitRatingBtn.disabled = false;
-    submitRatingBtn.textContent = 'Submit Rating';
-
-    if (typeof showToast === 'function') {
-      showToast('Thank you for your rating! ⭐', 'success', 3000);
-    }
-
-    resetAppToInitialState();
-    loadRides();
-  };
-}
-
-// Run in rider console
-fetch('/api/rides', {
-  headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-})
-.then(res => res.json())
-.then(rides => {
-  const active = rides.find(r => r.status === 'accepted' || r.status === 'in_progress');
-  if (active) {
-    console.log('📍 Active ride:', active._id);
-    console.log('📍 Driver location:', active.driverLocation);
-    console.log('📍 Status:', active.status);
+  if (previous === undefined) {
+    lastNotifiedRideStatus[ride._id] = current;
+    return;
   }
-})
+
+  if (previous === current) return;
+
+  lastNotifiedRideStatus[ride._id] = current;
+
+  if (current === 'accepted') {
+    showToast('Your ride has been accepted by the driver.', 'success', 4000);
+  } else if (current === 'in_progress') {
+    showToast('Your driver has arrived and your trip has started.', 'success', 4000);
+  } else if (current === 'completed') {
+    showToast('Your ride has been completed.', 'success', 4000);
+  } else if (current === 'cancelled') {
+    showToast('Your ride was cancelled.', 'warning', 4000);
+  }
+}
 
 // ===============================
 // RIDE LIST RENDERING
@@ -1773,7 +1813,7 @@ if (rideSort) {
 
 
 // ===============================
-// RIDE POLLING & AUTO-MODAL TRIGGER
+// RIDE POLLING & AUTO-MODAL TRIGGER - FIXED
 // ===============================
 
 async function loadRides() {
@@ -1804,11 +1844,56 @@ async function loadRides() {
     );
 
     if (currentActiveRide) {
-      startRideStatusFlow(currentActiveRide);
+      // ==========================================================
+      // FIX: Only call startRideStatusFlow if the ride ID changed
+      // ==========================================================
+      if (activeRideId !== currentActiveRide._id) {
+        console.log('🔄 New active ride detected, starting flow');
+        activeRideId = currentActiveRide._id;
+        notifyRiderOfStatusChange(currentActiveRide);
+        startRideStatusFlow(currentActiveRide);
+      } else {
+        // Ride is the same - just update UI without restarting animation
+        console.log('🔄 Same active ride, updating UI only');
+        
+        // Update the status text if it changed
+        const statusText = document.getElementById('driver-status-text');
+        if (statusText) {
+          if (currentActiveRide.status === 'accepted') {
+            statusText.textContent = '🚗 Driver is on the way to your pickup location';
+            statusText.style.color = 'var(--rb-teal)';
+          } else if (currentActiveRide.status === 'in_progress') {
+            statusText.textContent = '🚕 Trip in progress - heading to destination';
+            statusText.style.color = '#0fbd8c';
+          }
+        }
+        
+        // ==========================================================
+        // CRITICAL FIX: Update driver marker from fresh GPS data
+        // ==========================================================
+        if (currentActiveRide.driverLocation && currentActiveRide.driverLocation.lat != null) {
+          const ageMs = Date.now() - new Date(currentActiveRide.driverLocation.updatedAt).getTime();
+          const isStale = ageMs > DRIVER_LOCATION_STALE_MS;
+          
+          if (!isStale && driverMarker) {
+            // Fresh GPS - update marker directly with smooth animation
+            console.log('📍 Updating marker from fresh GPS data');
+            animateRiderCar(
+              currentActiveRide.driverLocation.lat,
+              currentActiveRide.driverLocation.lng,
+              false
+            );
+          }
+        }
+        
+        // Update distance/ETA values without restarting animation
+        updateRideUIValues(currentActiveRide);
+      }
     } else {
       if (activeRideId) {
         const justCompleted = passengerRides.find(r => r._id === activeRideId && r.status === 'completed');
         if (justCompleted) {
+          notifyRiderOfStatusChange(justCompleted);
           showRatingModal(justCompleted);
         }
       }
@@ -1820,6 +1905,36 @@ async function loadRides() {
   }
 }
 
+// ==========================================================
+// NEW: Update UI values without restarting animation
+// ==========================================================
+
+function updateRideUIValues(ride) {
+  const distanceEl = document.getElementById('driver-distance-value');
+  const etaEl = document.getElementById('driver-eta-value');
+  
+  // Don't update ETA if animation is running - it manages itself
+  if (simRafId || simClaimed) {
+    return;
+  }
+  
+  // If no animation is running, update from ride data
+  if (distanceEl && ride.driverLocation && ride.driverLocation.lat != null) {
+    const targetStop = ride.status === 'in_progress' ? ride.dropoff : ride.pickup;
+    if (targetStop) {
+      const dist = haversineDistanceKm(
+        { lat: ride.driverLocation.lat, lng: ride.driverLocation.lng },
+        targetStop
+      );
+      distanceEl.textContent = `${dist.toFixed(1)} km`;
+    }
+  }
+  
+  if (etaEl && ride.durationMin) {
+    const remaining = Math.max(0, ride.durationMin - (Date.now() - new Date(ride.inProgressAt || ride.acceptedAt || Date.now()).getTime()) / 60000);
+    etaEl.textContent = `${Math.ceil(remaining)} min`;
+  }
+}
 
 // ===============================
 // NAVIGATION & START

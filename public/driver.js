@@ -143,9 +143,9 @@ let animState = {
   rideId: null,
   phase: null, // 'to_pickup' or 'to_dropoff'
   routeCoords: [],
-  startTime: null, // Server timestamp (acceptedAt or inProgressAt)
-  realDurationMs: 0, // Real-world duration from OSRM
-  animDurationMs: 0, // Duration for animation (realDurationMs / 3)
+  startTime: null,
+  realDurationMs: 0,
+  animDurationMs: 0,
   progress: 0,
   completed: false,
   animFrameId: null,
@@ -186,15 +186,12 @@ function placeMarker(lat, lng, bearingDeg) {
 // ===============================
 
 async function startAnimation(ride, phaseKey, targetStop) {
-  // If already running for this ride+phase, keep going
   if (animState.running && animState.rideId === ride._id && animState.phase === phaseKey) {
     return;
   }
 
-  // Reset any existing animation
   resetAnimation();
 
-  // Get start position
   let startPoint = animState.lastPosition;
   if (!startPoint) {
     startPoint = phaseKey === 'to_pickup'
@@ -202,22 +199,17 @@ async function startAnimation(ride, phaseKey, targetStop) {
       : { lat: ride.pickup.lat, lng: ride.pickup.lng };
   }
 
-  // Create marker if needed
   if (!driverMarker) {
     driverMarker = L.marker([startPoint.lat, startPoint.lng], { icon: createCarIcon(0) })
       .addTo(map)
       .bindPopup('Driver');
   }
 
-  // Fetch route
   const route = await fetchRouteCoords(startPoint, targetStop);
   
   const coords = route ? route.coords : [[startPoint.lat, startPoint.lng], [targetStop.lat, targetStop.lng]];
   const distanceKm = route ? route.distanceKm : haversineDistanceKm(startPoint, targetStop);
 
-  // ==========================================================
-  // REAL DURATION (from OSRM or estimate)
-  // ==========================================================
   let realDurationMs;
   if (phaseKey === 'to_dropoff' && ride.durationMin) {
     realDurationMs = ride.durationMin * 60 * 1000;
@@ -227,18 +219,11 @@ async function startAnimation(ride, phaseKey, targetStop) {
     realDurationMs = (distanceKm / 30) * 3600 * 1000;
   }
   
-  // Minimum real duration: 60 seconds
   realDurationMs = Math.max(realDurationMs, 60000);
 
-  // ==========================================================
-  // ANIMATION DURATION = realDuration / 3 (3x faster)
-  // ==========================================================
   const SPEED_MULTIPLIER = 3;
   const animDurationMs = realDurationMs / SPEED_MULTIPLIER;
 
-  // ==========================================================
-  // GET SERVER TIMESTAMP (for persistence across reloads)
-  // ==========================================================
   let serverTimestamp = null;
   if (phaseKey === 'to_pickup') {
     serverTimestamp = ride.acceptedAt ? new Date(ride.acceptedAt) : null;
@@ -252,17 +237,9 @@ async function startAnimation(ride, phaseKey, targetStop) {
 
   const startTime = serverTimestamp.getTime();
 
-  // ==========================================================
-  // CALCULATE CURRENT PROGRESS
-  // ==========================================================
   const elapsedRealTime = Date.now() - startTime;
   const progress = Math.min(1, elapsedRealTime / animDurationMs);
 
-  console.log(`🔍 Animation started: realDuration=${realDurationMs/1000}s, animDuration=${animDurationMs/1000}s, progress=${progress.toFixed(2)}`);
-
-  // ==========================================================
-  // SETUP ANIMATION STATE
-  // ==========================================================
   animState.running = true;
   animState.rideId = ride._id;
   animState.phase = phaseKey;
@@ -273,13 +250,12 @@ async function startAnimation(ride, phaseKey, targetStop) {
   animState.progress = progress;
   animState.completed = false;
 
-  // If already complete, snap to end
   if (progress >= 1) {
     const last = coords[coords.length - 1];
     placeMarker(last[0], last[1], 0);
     animState.completed = true;
     animState.running = false;
-    
+
     if (phaseKey === 'to_dropoff') {
       const endTripBtn = document.getElementById('end-trip-btn');
       if (endTripBtn) {
@@ -287,33 +263,27 @@ async function startAnimation(ride, phaseKey, targetStop) {
         endTripBtn.textContent = '✅ End Trip';
       }
     }
+
     return;
   }
 
-  // Place marker at current progress
   const pos = getPointAlongRoute(coords, progress);
   if (pos) {
     placeMarker(pos.lat, pos.lng, pos.bearingDeg);
   }
 
-  // ==========================================================
-  // START ETA TIMER - SHOWS REAL TIME REMAINING
-  // ==========================================================
   animState.etaIntervalId = setInterval(() => {
     if (!animState.running && !animState.completed) return;
     
-    // Calculate real time remaining
     const elapsedReal = Date.now() - animState.startTime;
     const realRemainingMs = Math.max(animState.realDurationMs - elapsedReal, 0);
     const minutesRemaining = Math.max(Math.ceil(realRemainingMs / 60000), 0);
     
-    // Update ETA display
     const etaEl = document.getElementById('driver-eta-value');
     if (etaEl) {
       etaEl.textContent = minutesRemaining <= 0 ? 'Arriving' : `${minutesRemaining} min`;
     }
     
-    // Update distance display
     const distEl = document.getElementById('driver-distance-value');
     if (distEl && animState.routeCoords.length > 0) {
       const totalDist = haversineDistanceKm(
@@ -325,7 +295,6 @@ async function startAnimation(ride, phaseKey, targetStop) {
       distEl.textContent = `${remainingDist.toFixed(1)} km`;
     }
     
-    // Enable End Trip when animation complete
     if (animState.completed && animState.phase === 'to_dropoff') {
       const endTripBtn = document.getElementById('end-trip-btn');
       if (endTripBtn && endTripBtn.disabled) {
@@ -335,7 +304,6 @@ async function startAnimation(ride, phaseKey, targetStop) {
     }
   }, 1000);
 
-  // Update ETA immediately
   const initialRealRemaining = Math.max(animState.realDurationMs, 0);
   const initialMinutes = Math.ceil(initialRealRemaining / 60000);
   const etaEl = document.getElementById('driver-eta-value');
@@ -343,38 +311,28 @@ async function startAnimation(ride, phaseKey, targetStop) {
     etaEl.textContent = initialMinutes <= 0 ? 'Arriving' : `${initialMinutes} min`;
   }
 
-  // ==========================================================
-  // ANIMATION LOOP - MOVES CAR 3X FASTER
-  // ==========================================================
-  
   function animateFrame() {
-    // Check if animation should continue
     if (!animState.running || animState.rideId !== ride._id || animState.phase !== phaseKey) {
       return;
     }
 
-    // Calculate current progress (3x faster than real time)
     const elapsedReal = Date.now() - animState.startTime;
     const t = Math.min(elapsedReal / animState.animDurationMs, 1);
     animState.progress = t;
 
-    // Get position along route
     const pos = getPointAlongRoute(animState.routeCoords, t);
     
     if (pos) {
       placeMarker(pos.lat, pos.lng, pos.bearingDeg);
     }
 
-    // Check if complete
     if (t >= 1) {
       animState.completed = true;
       animState.running = false;
       
-      // Snap to final position
       const last = animState.routeCoords[animState.routeCoords.length - 1];
       placeMarker(last[0], last[1], 0);
       
-      // Enable End Trip button if dropoff phase
       if (phaseKey === 'to_dropoff') {
         const endTripBtn = document.getElementById('end-trip-btn');
         if (endTripBtn) {
@@ -386,11 +344,9 @@ async function startAnimation(ride, phaseKey, targetStop) {
       return;
     }
 
-    // Continue animation
     animState.animFrameId = requestAnimationFrame(animateFrame);
   }
 
-  // Start the animation loop
   animState.animFrameId = requestAnimationFrame(animateFrame);
 }
 
@@ -403,8 +359,6 @@ let lastLocationPushAt = 0;
 const LOCATION_PUSH_INTERVAL_MS = 5000;
 
 function watchDriverLocation() {
-  console.log('🔍 watchDriverLocation started');
-
   if (!navigator.geolocation) {
     console.warn('⚠️ Geolocation not supported');
     return;
@@ -417,7 +371,6 @@ function watchDriverLocation() {
       
       driverLocation = { lat: newLat, lng: newLng };
 
-      // Only use real GPS if NO animation is running
       if (!animState.running) {
         if (!driverMarker) {
           driverMarker = L.marker([newLat, newLng], { icon: createCarIcon(0) })
@@ -447,107 +400,6 @@ function watchDriverLocation() {
       maximumAge: 5000
     }
   );
-}
-
-async function checkAndPushLocation() {
-  if (!driverLocation || !activeTripId) {
-    console.log('⚠️ No driver location or active trip ID');
-    return;
-  }
-  
-  try {
-    // ==========================================================
-    // FIX: Log the ride ID being checked
-    // ==========================================================
-    console.log('🔍 checkAndPushLocation - Checking ride:', activeTripId);
-    
-    const response = await fetch(`/api/rides/${activeTripId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (!response.ok) {
-      console.warn('Failed to verify ride status:', response.status);
-      return;
-    }
-
-    const ride = await response.json();
-
-    console.log('  - Ride status:', ride.status);
-    console.log('  - Ride driver:', ride.driver ? 'Set' : 'Not set');
-
-    // ==========================================================
-    // FIX: Only push location if ride is active
-    // ==========================================================
-    if (ride.status !== 'accepted' && ride.status !== 'in_progress') {
-      console.log('⚠️ Ride is not active (status:', ride.status, '), skipping location push');
-      // If the ride is completed or cancelled, clear activeTripId
-      if (ride.status === 'completed' || ride.status === 'cancelled') {
-        console.log('  🧹 Clearing activeTripId because ride is', ride.status);
-        activeTripId = null;
-        loadPendingRides();
-      }
-      return;
-    }
-
-    // ==========================================================
-    // FIX: Check if driver is assigned
-    // ==========================================================
-    if (!ride.driver) {
-      console.log('⚠️ No driver assigned to this ride');
-      return;
-    }
-
-    // Get driver ID
-    let driverId = null;
-    if (typeof ride.driver === 'object' && ride.driver._id) {
-      driverId = ride.driver._id.toString();
-    } else if (typeof ride.driver === 'string') {
-      driverId = ride.driver;
-    }
-
-    console.log('  - Driver ID from ride:', driverId);
-    console.log('  - Current user ID:', currentUserId);
-
-    if (!driverId || driverId !== currentUserId) {
-      console.log('⚠️ Driver ID mismatch, skipping location push');
-      return;
-    }
-
-    const now = Date.now();
-    if (now - lastLocationPushAt > LOCATION_PUSH_INTERVAL_MS) {
-      lastLocationPushAt = now;
-      
-      console.log('📍 Pushing location for ride:', activeTripId);
-      
-      const pushResponse = await fetch(`/api/rides/${activeTripId}/location`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          lat: driverLocation.lat,
-          lng: driverLocation.lng
-        })
-      });
-
-      if (!pushResponse.ok) {
-        const errorData = await pushResponse.json().catch(() => ({}));
-        console.warn('❌ Location push failed:', errorData.message || 'Unknown error');
-        console.warn('❌ Status:', pushResponse.status);
-        
-        if (pushResponse.status === 403) {
-          console.warn('⚠️ Driver not authorized for this ride, clearing activeTripId');
-          activeTripId = null;
-          loadPendingRides();
-        }
-      } else {
-        console.log('✅ Location pushed successfully for ride:', activeTripId);
-      }
-    }
-  } catch (err) {
-    console.warn('❌ Error in checkAndPushLocation:', err);
-  }
 }
 
 // ===============================
@@ -601,9 +453,6 @@ async function drawTripOnMap(ride, stage) {
       .bindPopup('📍 Pickup');
   }
 
-  // ==========================================================
-  // FULL ROUTE - GREEN SOLID LINE
-  // ==========================================================
   if (ride.pickup && ride.dropoff) {
     try {
       const fullRouteUrl = `https://router.project-osrm.org/route/v1/driving/${ride.pickup.lng},${ride.pickup.lat};${ride.dropoff.lng},${ride.dropoff.lat}?overview=full&geometries=geojson`;
@@ -612,11 +461,10 @@ async function drawTripOnMap(ride, stage) {
       if (fullData.routes && fullData.routes.length > 0) {
         const coords = fullData.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
         tripOverviewLine = L.polyline(coords, {
-          color: '#22c55e', // GREEN
+          color: '#22c55e',
           weight: 4,
           opacity: 0.7
         }).addTo(map);
-        console.log('✅ Full route drawn (GREEN solid)');
       } else {
         tripOverviewLine = L.polyline(
           [[ride.pickup.lat, ride.pickup.lng], [ride.dropoff.lat, ride.dropoff.lng]],
@@ -632,21 +480,17 @@ async function drawTripOnMap(ride, stage) {
     }
   }
 
-  // ==========================================================
-  // APPROACH ROUTE - BRIGHT GREEN / TEAL
-  // ==========================================================
   if (driverLocation) {
     try {
       const route = await getRoadRoute(driverLocation, nextStop);
       if (route && route.coordinates && route.coordinates.length > 0) {
         approachLine = L.polyline(route.coordinates, {
-          color: '#00d4aa', // Teal
+          color: '#00d4aa',
           weight: 5,
           opacity: 0.95,
           lineJoin: 'round'
         }).addTo(map);
         
-        // Glow effect
         const glowLine = L.polyline(route.coordinates, {
           color: '#00d4aa',
           weight: 12,
@@ -656,7 +500,6 @@ async function drawTripOnMap(ride, stage) {
         approachLine._glow = glowLine;
         
         map.fitBounds(approachLine.getBounds(), { padding: [50, 50] });
-        console.log('✅ Approach route drawn (teal)');
       } else {
         approachLine = L.polyline(
           [[driverLocation.lat, driverLocation.lng], [nextStop.lat, nextStop.lng]],
@@ -668,7 +511,6 @@ async function drawTripOnMap(ride, stage) {
     }
   }
 
-  // Start animation
   const phaseKey = stage === 'to_pickup' ? 'to_pickup' : 'to_dropoff';
   const targetStop = stage === 'to_pickup' ? ride.pickup : ride.dropoff;
   
@@ -678,7 +520,7 @@ async function drawTripOnMap(ride, stage) {
 }
 
 // ===============================
-// CLEANUP FUNCTION - Stop all background processes
+// CLEANUP FUNCTION
 // ===============================
 
 let locationPushIntervalId = null;
@@ -686,43 +528,26 @@ let locationPushIntervalId = null;
 function cleanupDriver() {
   console.log('🧹 Cleaning up driver processes...');
   
-  // Clear the main polling interval
   if (locationPushIntervalId) {
     clearInterval(locationPushIntervalId);
     locationPushIntervalId = null;
   }
   
-  // Clear animation
   resetAnimation();
-  
-  // Clear active trip
   activeTripId = null;
-  
-  // Cancel any pending location pushes
   lastLocationPushAt = 0;
-  
-  console.log('✅ Cleanup complete');
 }
 
 // ===============================
-// FIXED: checkAndPushLocation - Add a guard against completed rides
+// checkAndPushLocation
 // ===============================
 
 async function checkAndPushLocation() {
-  // Guard: Don't push if no location or no active trip
   if (!driverLocation || !activeTripId) {
     return;
   }
   
-  // Guard: Don't push if animState is complete (ride is done)
-  if (animState.completed && animState.phase === 'to_dropoff') {
-    console.log('⚠️ Ride is completed, not pushing location');
-    return;
-  }
-  
   try {
-    console.log('🔍 checkAndPushLocation - Checking ride:', activeTripId);
-    
     const response = await fetch(`/api/rides/${activeTripId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -734,12 +559,6 @@ async function checkAndPushLocation() {
 
     const ride = await response.json();
 
-    console.log('  - Ride status:', ride.status);
-    console.log('  - Ride driver:', ride.driver ? 'Set' : 'Not set');
-
-    // ==========================================================
-    // CRITICAL FIX: If ride is completed or cancelled, stop everything
-    // ==========================================================
     if (ride.status === 'completed' || ride.status === 'cancelled') {
       console.log('🧹 Ride is', ride.status, '- cleaning up');
       cleanupDriver();
@@ -747,13 +566,11 @@ async function checkAndPushLocation() {
       return;
     }
 
-    // Only push if ride is active
     if (ride.status !== 'accepted' && ride.status !== 'in_progress') {
       console.log('⚠️ Ride is not active (status:', ride.status, '), skipping');
       return;
     }
 
-    // Check driver assignment
     if (!ride.driver) {
       console.log('⚠️ No driver assigned to this ride');
       return;
@@ -766,9 +583,6 @@ async function checkAndPushLocation() {
       driverId = ride.driver;
     }
 
-    console.log('  - Driver ID from ride:', driverId);
-    console.log('  - Current user ID:', currentUserId);
-
     if (!driverId || driverId !== currentUserId) {
       console.log('⚠️ Driver ID mismatch, skipping location push');
       return;
@@ -777,8 +591,6 @@ async function checkAndPushLocation() {
     const now = Date.now();
     if (now - lastLocationPushAt > LOCATION_PUSH_INTERVAL_MS) {
       lastLocationPushAt = now;
-      
-      console.log('📍 Pushing location for ride:', activeTripId);
       
       const pushResponse = await fetch(`/api/rides/${activeTripId}/location`, {
         method: 'PATCH',
@@ -795,15 +607,12 @@ async function checkAndPushLocation() {
       if (!pushResponse.ok) {
         const errorData = await pushResponse.json().catch(() => ({}));
         console.warn('❌ Location push failed:', errorData.message || 'Unknown error');
-        console.warn('❌ Status:', pushResponse.status);
         
         if (pushResponse.status === 403) {
           console.warn('⚠️ Driver not authorized for this ride, cleaning up');
           cleanupDriver();
           loadPendingRides();
         }
-      } else {
-        console.log('✅ Location pushed successfully for ride:', activeTripId);
       }
     }
   } catch (err) {
@@ -827,7 +636,7 @@ function updateActiveTripUI(ride, stage) {
 }
 
 // ===============================
-// RENDER RIDE REQUEST CARD
+// COMPACT RIDE REQUEST CARD
 // ===============================
 
 function renderRideRequestCard(ride) {
@@ -859,50 +668,46 @@ function renderRideRequestCard(ride) {
   card.className = 'ride-request-card';
 
   card.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 0.7rem;">🚗</span>
-        <span style="font-weight: 700; color: var(--rb-teal); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em;">New</span>
-        <span style="font-size: 0.5rem; background: rgba(0,212,170,0.12); color: var(--rb-teal); padding: 1px 6px; border-radius: 8px; font-weight: 600;">PENDING</span>
+    <div class="ride-card-header">
+      <div class="ride-card-badge">
+        <span class="badge-new">NEW</span>
+        <span class="badge-price">${price}</span>
       </div>
-      <span style="font-size: 0.55rem; color: var(--rb-text-muted);">${requestTime}</span>
+      <span class="ride-card-time">${requestTime}</span>
     </div>
 
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-      <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--rb-teal-glow-soft); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; border: 1px solid var(--rb-border-teal);">👤</div>
-      <div style="flex: 1; min-width: 0;">
-        <div style="font-size: 0.75rem; font-weight: 600; color: var(--rb-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${passengerName}</div>
-        <div style="font-size: 0.6rem; color: var(--rb-text-secondary);">⭐ ${passengerRating}</div>
+    <div class="ride-card-rider">
+      <div class="rider-avatar-small">👤</div>
+      <div class="rider-info">
+        <span class="rider-name">${passengerName}</span>
+        <span class="rider-rating">⭐ ${passengerRating}</span>
       </div>
-      <div style="font-size: 0.8rem; font-weight: 700; color: var(--rb-teal);">${price}</div>
-    </div>
-
-    <div style="margin-bottom: 6px; padding: 4px 6px; background: var(--rb-surface); border-radius: 6px;">
-      <div style="display: flex; align-items: center; gap: 6px; padding: 1px 0;">
-        <span style="font-size: 0.6rem;">📍</span>
-        <span style="font-size: 0.65rem; color: var(--rb-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pickupAddr}</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 6px; padding: 1px 0;">
-        <span style="font-size: 0.6rem;">🔴</span>
-        <span style="font-size: 0.65rem; color: var(--rb-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${dropoffAddr}</span>
+      <div class="rider-distance">
+        <span class="distance-value">${distanceToPickup}</span>
+        <span class="eta-value">${etaToPickup}</span>
       </div>
     </div>
 
-    <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 0; margin-bottom: 8px; border-top: 1px solid rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.04);">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 0.55rem; color: var(--rb-text-muted);">📏 ${tripDistance}</span>
-        <span style="font-size: 0.55rem; color: var(--rb-text-muted);">⏱ ${tripDuration}</span>
+    <div class="ride-card-route">
+      <div class="route-item pickup">
+        <span class="route-icon pickup-icon">📍</span>
+        <span class="route-address">${pickupAddr}</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 4px;">
-        <span style="font-size: 0.55rem; color: var(--rb-text-muted);">🛣</span>
-        <span style="font-size: 0.6rem; font-weight: 600; color: var(--rb-teal);">${distanceToPickup}</span>
-        <span style="font-size: 0.5rem; color: var(--rb-text-muted);">(${etaToPickup})</span>
+      <div class="route-connector"></div>
+      <div class="route-item dropoff">
+        <span class="route-icon dropoff-icon">🔴</span>
+        <span class="route-address">${dropoffAddr}</span>
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 5px;">
+    <div class="ride-card-stats">
+      <span class="stat-item">📏 ${tripDistance}</span>
+      <span class="stat-item">⏱ ${tripDuration}</span>
+    </div>
+
+    <div class="ride-card-actions">
       <button class="decline-btn" data-ride-id="${ride._id}">Decline</button>
-      <button class="accept-btn" data-ride-id="${ride._id}">Accept</button>
+      <button class="accept-btn" data-ride-id="${ride._id}">Accept Ride</button>
     </div>
   `;
 
@@ -913,43 +718,22 @@ function renderRideRequestCard(ride) {
     updateRide(ride._id, 'accepted');
   });
 
-  acceptBtn.addEventListener('mouseenter', () => {
-    acceptBtn.style.background = '#00b894';
-    acceptBtn.style.transform = 'scale(1.02)';
-  });
-  acceptBtn.addEventListener('mouseleave', () => {
-    acceptBtn.style.background = 'var(--rb-teal)';
-    acceptBtn.style.transform = 'scale(1)';
-  });
-
   declineBtn.addEventListener('click', () => {
     if (confirm('Decline this ride request?')) {
       updateRide(ride._id, 'cancelled');
     }
   });
 
-  declineBtn.addEventListener('mouseenter', () => {
-    declineBtn.style.background = 'rgba(220,53,69,0.08)';
-    declineBtn.style.borderColor = 'rgba(220,53,69,0.3)';
-    declineBtn.style.color = '#ef7777';
-  });
-  declineBtn.addEventListener('mouseleave', () => {
-    declineBtn.style.background = 'transparent';
-    declineBtn.style.borderColor = 'rgba(220,53,69,0.15)';
-    declineBtn.style.color = '#f2a3ab';
-  });
-
   return card;
 }
 
 // ===============================
-// RENDER ACTIVE TRIP SCREEN
+// COMPACT ACTIVE TRIP SCREEN
 // ===============================
 
 function renderActiveTripScreen(ride) {
   const stage = ride.status === 'accepted' ? 'to_pickup' : 'to_dropoff';
   
-  // Check if we already have this ride rendered
   const existingCard = document.querySelector('.active-trip-screen');
   const existingRideId = existingCard ? existingCard.dataset.rideId : null;
   
@@ -1017,44 +801,44 @@ function renderActiveTripScreen(ride) {
 
   const cardHtml = `
     <div class="active-trip-screen" data-ride-id="${ride._id}" data-stage="${stage}">
-      <div style="background: ${statusBg}; border-radius: 8px; padding: 8px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
-        <span style="font-size: 0.8rem; font-weight: 600; color: ${statusColor};">${stageEmoji} ${statusText}</span>
-        <span style="font-size: 0.7rem; color: var(--rb-text-muted);">
+      <div class="active-trip-status" style="background: ${statusBg};">
+        <span style="color: ${statusColor};">${stageEmoji} ${statusText}</span>
+        <span>
           <span id="driver-distance-value">${distanceToStop}</span> · ETA <span id="driver-eta-value">--</span>
         </span>
       </div>
 
-      <div style="background: var(--rb-surface); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-          <span style="font-size: 0.7rem;">${stageEmoji}</span>
-          <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--rb-text-muted); font-weight: 600; letter-spacing: 0.04em;">${stageLabel}</span>
-          <span style="font-size: 0.75rem; color: var(--rb-text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nextStop.address || 'Location'}</span>
+      <div class="active-trip-route">
+        <div class="route-item">
+          <span class="route-icon pickup-icon">📍</span>
+          <span class="route-label">${stageLabel}</span>
+          <span class="route-address">${nextStop.address || 'Location'}</span>
         </div>
-        <div style="display: flex; gap: 16px; margin-top: 4px;">
-          <span style="font-size: 0.7rem; color: var(--rb-text-muted);">📏 ${tripDistance}</span>
-          <span style="font-size: 0.7rem; color: var(--rb-teal); font-weight: 600;">💰 ${price}</span>
+        <div class="active-trip-stats">
+          <span>📏 ${tripDistance}</span>
+          <span>💰 ${price}</span>
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 12px; padding: 8px 10px; background: var(--rb-surface); border-radius: 8px; margin-bottom: 12px;">
-        <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--rb-teal-glow-soft); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">👤</div>
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 0.85rem; font-weight: 600; color: var(--rb-text);">${riderName}</div>
-          <div style="font-size: 0.7rem; color: var(--rb-text-secondary);">⭐ ${driverRating} · ${vehicleDesc}</div>
+      <div class="active-trip-driver">
+        <div class="driver-avatar-small">👤</div>
+        <div class="driver-info">
+          <span class="driver-name">${riderName}</span>
+          <span class="driver-vehicle">⭐ ${driverRating} · ${vehicleDesc}</span>
         </div>
-        <div style="font-size: 0.7rem; font-weight: 600; color: var(--rb-text-muted); letter-spacing: 0.04em; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px;">${plate}</div>
+        <div class="driver-plate">${plate}</div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+      <div class="active-trip-actions">
         ${riderPhone ? `
-          <button onclick="window.location.href='tel:${riderPhone}'" style="padding: 8px; border: 1px solid var(--rb-border); border-radius: 6px; background: transparent; color: var(--rb-text); font-weight: 600; font-size: 0.7rem; cursor: pointer;">📞 Call</button>
-          <button onclick="window.location.href='sms:${riderPhone}'" style="padding: 8px; border: 1px solid var(--rb-border); border-radius: 6px; background: transparent; color: var(--rb-text); font-weight: 600; font-size: 0.7rem; cursor: pointer;">💬 Message</button>
+          <button onclick="window.location.href='tel:${riderPhone}'">📞 Call</button>
+          <button onclick="window.location.href='sms:${riderPhone}'">💬 Message</button>
         ` : `
-          <span style="color: var(--rb-text-muted); font-size: 0.7rem; text-align: center; grid-column: 1 / -1; padding: 4px;">No contact info available</span>
+          <span class="no-contact">No contact info</span>
         `}
       </div>
 
-      <button onclick="updateRide('${ride._id}', 'cancelled')" style="width: 100%; padding: 8px; border: 1px solid var(--rb-border-strong); border-radius: 6px; background: transparent; color: var(--rb-text-secondary); font-weight: 500; font-size: 0.7rem; cursor: pointer; margin-bottom: 6px;">
+      <button onclick="updateRide('${ride._id}', 'cancelled')" class="btn-cancel-ride">
         Cancel Ride
       </button>
 
@@ -1064,7 +848,6 @@ function renderActiveTripScreen(ride) {
 
   driverRides.innerHTML = cardHtml;
 
-  // Start the animation
   const phaseKey = stage === 'to_pickup' ? 'to_pickup' : 'to_dropoff';
   const targetStop = stage === 'to_pickup' ? ride.pickup : ride.dropoff;
   
@@ -1080,14 +863,6 @@ function renderActiveTripScreen(ride) {
           updateRide(currentMapRideId, 'in_progress');
         }
       };
-      pickupBtn.addEventListener('mouseenter', () => {
-        pickupBtn.style.background = '#00b894';
-        pickupBtn.style.transform = 'scale(1.02)';
-      });
-      pickupBtn.addEventListener('mouseleave', () => {
-        pickupBtn.style.background = 'var(--rb-teal)';
-        pickupBtn.style.transform = 'scale(1)';
-      });
     }
   }, 100);
 }
@@ -1102,9 +877,9 @@ function renderAvailableRidesList(rides) {
   if (pendingRides.length === 0) {
     driverRides.innerHTML = `
       <div class="empty-state">
-        <div style="font-size: 2.8rem; margin-bottom: 10px;">🚗</div>
-        <h3 style="color: var(--rb-text); font-size: 0.95rem; font-weight: 600; margin-bottom: 4px;">No rides available</h3>
-        <p style="color: var(--rb-text-muted); font-size: 0.8rem;">Check back later for new ride requests</p>
+        <div class="empty-icon">🚗</div>
+        <h3>No rides available</h3>
+        <p>Check back later for new ride requests</p>
       </div>
     `;
     return;
@@ -1139,20 +914,12 @@ async function loadPendingRides() {
 
     const rides = await response.json();
 
-    // Find the ACTIVE trip (pending, accepted, or in_progress)
     const myActiveTrip = rides.find(
       r => r.status === 'accepted' || r.status === 'in_progress'
     );
 
-    console.log('🔍 loadPendingRides:');
-    console.log('  - Active trip found:', myActiveTrip ? myActiveTrip._id : 'None');
-    console.log('  - Active trip status:', myActiveTrip ? myActiveTrip.status : 'None');
-    console.log('  - Current activeTripId:', activeTripId);
-
     if (myActiveTrip) {
-      // Update activeTripId
       if (activeTripId !== myActiveTrip._id) {
-        console.log('  ✅ Updating activeTripId from', activeTripId, 'to', myActiveTrip._id);
         activeTripId = myActiveTrip._id;
       }
       
@@ -1169,17 +936,13 @@ async function loadPendingRides() {
           const targetStop = stage === 'to_pickup' ? myActiveTrip.pickup : myActiveTrip.dropoff;
           const phaseKey = stage === 'to_pickup' ? 'to_pickup' : 'to_dropoff';
           
-          // Only start animation if not already running
           if (!animState.running || animState.rideId !== myActiveTrip._id) {
-            // Clear any old animation state first
             resetAnimation();
             startAnimation(myActiveTrip, phaseKey, targetStop);
           }
         }
       }
     } else {
-      console.log('  ⚠️ No active trip found - cleaning up');
-      // No active trip - clean up everything
       cleanupDriver();
       renderAvailableRidesList(rides);
     }
@@ -1191,8 +954,6 @@ async function loadPendingRides() {
 
 async function updateRide(id, status) {
   try {
-    console.log('🔍 Updating ride:', id, 'to status:', status);
-
     const response = await fetch(`/api/rides/${id}`, {
       method: 'PATCH',
       headers: {
@@ -1216,7 +977,6 @@ async function updateRide(id, status) {
     }
 
     const updatedRide = await response.json();
-    console.log('🔍 Ride updated successfully:', updatedRide);
 
     if (status === 'completed') {
       clearTripLayers();

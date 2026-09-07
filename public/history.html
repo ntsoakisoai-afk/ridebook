@@ -46,7 +46,7 @@
                 👤 My Profile
             </button>
 
-            <button onclick="window.location.href='history.html'">
+            <button class="active" onclick="window.location.href='history.html'">
                 📜 Ride History
             </button>
 
@@ -61,10 +61,51 @@
 
     <main class="driver-content">
 
-        <h1>Ride History</h1>
+        <h1>Driver History</h1>
 
-        <p>Completed rides.</p>
+        <p>View your completed rides and earnings.</p>
 
+        <!-- ========================== -->
+        <!-- STATISTICS SUMMARY -->
+        <!-- ========================== -->
+        <div id="history-stats"></div>
+
+        <!-- ========================== -->
+        <!-- FILTERS -->
+        <!-- ========================== -->
+        <div class="history-filters">
+            <div class="filter-group">
+                <label for="history-filter">Status</label>
+                <select id="history-filter">
+                    <option value="all">All Rides</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="in_progress">In Progress</option>
+                </select>
+            </div>
+
+            <div class="filter-group date-filters" id="date-filters">
+                <label>Date</label>
+                <div class="date-filter-buttons">
+                    <button class="date-filter-btn active" data-filter="all">All Time</button>
+                    <button class="date-filter-btn" data-filter="today">Today</button>
+                    <button class="date-filter-btn" data-filter="week">This Week</button>
+                    <button class="date-filter-btn" data-filter="month">This Month</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================== -->
+        <!-- RIDE COUNT -->
+        <!-- ========================== -->
+        <div class="history-summary">
+            <span id="ride-count">0 rides</span>
+        </div>
+
+        <!-- ========================== -->
+        <!-- HISTORY LIST -->
+        <!-- ========================== -->
         <div id="history-rides"></div>
 
     </main>
