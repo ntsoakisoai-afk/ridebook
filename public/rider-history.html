@@ -117,67 +117,101 @@
 
     <main class="rider-history-content">
 
-      <!-- HEADER -->
+      <!-- HEADER SECTION -->
 
       <header class="history-header">
 
         <div class="history-title">
 
-          <h1>
-            Ride History
-          </h1>
+          <h1>Ride History</h1>
 
-          <p>
-            View your past and current rides.
-          </p>
-
-        </div>
-
-
-        <!-- FILTER -->
-
-        <div class="history-filter">
-
-          <label for="history-filter">
-            Filter rides
-          </label>
-
-          <select id="history-filter">
-
-            <option value="all">
-              All Rides
-            </option>
-
-            <option value="pending">
-              Pending
-            </option>
-
-            <option value="accepted">
-              Accepted
-            </option>
-
-            <option value="completed">
-              Completed
-            </option>
-
-          </select>
+          <p>View all completed, cancelled and upcoming rides</p>
 
         </div>
 
       </header>
 
 
-      <!-- =========================
-           RIDE SUMMARY
-      ========================== -->
+      <!-- STATISTICS CARDS -->
 
-      <div class="history-summary">
+      <section class="history-stats">
 
-        <span id="ride-count">
-          0 rides
-        </span>
+        <div class="stat-card">
+          <div class="stat-label">Total Rides</div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Completed</div>
+          <div class="stat-value stat-completed" id="stat-completed">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Cancelled</div>
+          <div class="stat-value stat-cancelled" id="stat-cancelled">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">Upcoming</div>
+          <div class="stat-value stat-upcoming" id="stat-upcoming">0</div>
+        </div>
+
+      </section>
+
+
+      <!-- FILTERS SECTION -->
+
+      <div class="history-controls">
+
+        <div class="filter-group">
+
+          <div class="filter-buttons">
+
+            <button type="button" class="filter-btn active" data-filter="all">
+              All Rides
+            </button>
+
+            <button type="button" class="filter-btn" data-filter="completed">
+              ✓ Completed
+            </button>
+
+            <button type="button" class="filter-btn" data-filter="cancelled">
+              ✕ Cancelled
+            </button>
+
+            <button type="button" class="filter-btn" data-filter="accepted">
+              📍 Upcoming
+            </button>
+
+          </div>
+
+        </div>
+
+        <div class="search-group">
+
+          <input 
+            type="text" 
+            id="search-rides" 
+            class="search-input" 
+            placeholder="Search by location or driver..."
+            aria-label="Search rides"
+          >
+
+        </div>
 
       </div>
+
+
+      <!-- HIDDEN FALLBACK SELECT (for compatibility) -->
+
+      <select id="history-filter" style="display: none;">
+
+        <option value="all">All Rides</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="accepted">Upcoming</option>
+
+      </select>
 
 
       <!-- =========================

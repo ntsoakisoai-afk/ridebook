@@ -98,13 +98,44 @@ app.get('/api/debug', (req, res) => {
 });
 
 // ---------- RIDE ROUTES ----------
+function normalizeRideLocation(location) {
+  if (!location || !location.address) {
+    return null;
+  }
+
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  const isValid = Number.isFinite(lat) && Number.isFinite(lng) &&
+    lat >= -35 && lat <= -22 && lng >= 16 && lng <= 33;
+
+  if (!isValid) {
+    return null;
+  }
+
+  return {
+    address: String(location.address).trim(),
+    lat,
+    lng
+  };
+}
+
 app.post('/api/rides', auth, async (req, res) => {
   try {
     const { pickup, dropoff, distanceKm, durationMin, price } = req.body;
+    const normalizedPickup = normalizeRideLocation(pickup);
+    const normalizedDropoff = normalizeRideLocation(dropoff);
+
+    console.log('Ride creation coordinates', { pickup, dropoff });
+
+    if (!normalizedPickup || !normalizedDropoff) {
+      return res.status(400).json({
+        message: 'Unable to verify route location. Please select a valid South African address.'
+      });
+    }
 
     const ride = new Ride({
-      pickup,
-      dropoff,
+      pickup: normalizedPickup,
+      dropoff: normalizedDropoff,
       distanceKm,
       durationMin,
       price,
@@ -112,6 +143,9 @@ app.post('/api/rides', auth, async (req, res) => {
     });
 
     const savedRide = await ride.save();
+  console.log('Ride created', savedRide);
+  console.log('Pickup coordinates', savedRide.pickup);
+  console.log('Dropoff coordinates', savedRide.dropoff);
     
     res.status(201).json(savedRide);
   } catch (err) {

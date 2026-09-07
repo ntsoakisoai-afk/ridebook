@@ -181,16 +181,176 @@ function setBookingFormEnabled(enabled) {
 // ROUTE DRAWING & PREVIEW
 // ===============================
 
+// ===============================
+// COORDINATE VALIDATION UTILITY
+// ===============================
+
+/**
+ * Validates a single coordinate object {lat, lng}
+ * @param {Object} coord - Coordinate object with lat and lng properties
+ * @returns {Object} { valid: boolean, error: string | null }
+ */
+function validateCoordinate(coord) {
+  if (!coord || typeof coord !== 'object') {
+    return { valid: false, error: 'Coordinate must be an object' };
+  }
+
+  const lat = Number(coord.lat);
+  const lng = Number(coord.lng);
+
+  // Check if values can be converted to numbers
+  if (isNaN(lat) || isNaN(lng)) {
+    return { valid: false, error: `NaN values: lat=${coord.lat}, lng=${coord.lng}` };
+  }
+
+  // Validate latitude range: -90 <= lat <= 90
+  if (lat < -90 || lat > 90) {
+    return { valid: false, error: `Invalid latitude: ${lat} (must be between -90 and 90)` };
+  }
+
+  // Validate longitude range: -180 <= lng <= 180
+  if (lng < -180 || lng > 180) {
+    return { valid: false, error: `Invalid longitude: ${lng} (must be between -180 and 180)` };
+  }
+
+  return { valid: true, error: null };
+}
+
+function isSouthAfricanCoordinate(coord) {
+  return coord.lat >= -35 && coord.lat <= -22 && coord.lng >= 16 && coord.lng <= 33;
+}
+
+function normalizeGeocodedLocation(result) {
+  const location = {
+    lat: Number(result.lat),
+    lng: Number(result.lon),
+    address: result.display_name
+  };
+
+  const validation = validateCoordinate(location);
+  if (!validation.valid || !isSouthAfricanCoordinate(location)) {
+    console.warn('Geocoder returned a coordinate outside South Africa', {
+      result,
+      location
+    });
+    return null;
+  }
+
+  console.log('Geocoded location', location);
+  return location;
+}
+
+/**
+ * Validates a pair of coordinates for routing
+ * @param {Object} pickup - Pickup location object
+ * @param {Object} dropoff - Dropoff location object
+ * @returns {Object} { valid: boolean, pickup: Object | null, dropoff: Object | null, errors: string[] }
+ */
+function validateRouteCoordinates(pickup, dropoff) {
+  const errors = [];
+
+  if (!pickup) {
+    errors.push('Pickup location is missing');
+  } else {
+    const pickupValidation = validateCoordinate(pickup);
+    if (!pickupValidation.valid) {
+      errors.push(`Pickup: ${pickupValidation.error}`);
+    }
+  }
+
+  if (!dropoff) {
+    errors.push('Dropoff location is missing');
+  } else {
+    const dropoffValidation = validateCoordinate(dropoff);
+    if (!dropoffValidation.valid) {
+      errors.push(`Dropoff: ${dropoffValidation.error}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      pickup: null,
+      dropoff: null,
+      errors: errors
+    };
+  }
+
+  // Normalize to ensure numbers
+  const normalizedPickup = {
+    lat: Number(pickup.lat),
+    lng: Number(pickup.lng),
+    address: pickup.address || 'Pickup'
+  };
+
+  const normalizedDropoff = {
+    lat: Number(dropoff.lat),
+    lng: Number(dropoff.lng),
+    address: dropoff.address || 'Dropoff'
+  };
+
+  if (!isSouthAfricanCoordinate(normalizedPickup) || !isSouthAfricanCoordinate(normalizedDropoff)) {
+    return {
+      valid: false,
+      pickup: null,
+      dropoff: null,
+      errors: ['Pickup or dropoff is outside South Africa']
+    };
+  }
+
+  // Ride routes are local. Do not ask OSRM to route across oceans when a
+  // coordinate pair has been swapped or corrupted in the stored ride data.
+  const distanceKm = haversineDistanceKm(normalizedPickup, normalizedDropoff);
+  if (distanceKm > 500) {
+    return {
+      valid: false,
+      pickup: null,
+      dropoff: null,
+      errors: [`Pickup and dropoff are ${Math.round(distanceKm)} km apart; refusing a local ride route`]
+    };
+  }
+
+  return {
+    valid: true,
+    pickup: normalizedPickup,
+    dropoff: normalizedDropoff,
+    errors: []
+  };
+}
+
 async function drawRoutePreview() {
   if (!pickupLocation || !dropoffLocation) return;
 
+  // Use comprehensive validation
+  const validation = validateRouteCoordinates(pickupLocation, dropoffLocation);
+  if (!validation.valid) {
+    console.error('Invalid route coordinates', {
+      pickup: pickupLocation,
+      dropoff: dropoffLocation,
+    });
+    console.warn('Skipping OSRM preview request:', validation.errors);
+    return;
+  }
+
+  const { pickup, dropoff } = validation;
+
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${pickupLocation.lng},${pickupLocation.lat};${dropoffLocation.lng},${dropoffLocation.lat}?overview=full&geometries=geojson`;
+    // OSRM expects lng,lat order
+    const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${dropoff.lng},${dropoff.lat}?overview=full&geometries=geojson`;
+
+    console.log('Route Request', {
+      pickup: { lat: pickup.lat, lng: pickup.lng },
+      dropoff: { lat: dropoff.lat, lng: dropoff.lng },
+      distanceKm: haversineDistanceKm(pickup, dropoff)
+    });
 
     const response = await fetch(url);
     const data = await response.json();
 
-    if (!data.routes || data.routes.length === 0) return;
+    if (!data.routes || data.routes.length === 0) {
+      console.warn('No route found for preview');
+      return;
+    }
 
     const route = data.routes[0];
     const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
@@ -219,7 +379,8 @@ async function drawRoutePreview() {
     if (fareDistance) fareDistance.textContent = `${distKm.toFixed(1)} km`;
     if (farePrice) farePrice.textContent = `R ${estPrice}`;
   } catch (err) {
-    console.error('Error drawing preview route:', err);
+    console.error('⚠️ Error drawing preview route:', err.message);
+    console.log('Fallback: No route preview available');
   }
 }
 
@@ -292,7 +453,9 @@ function setupSearchInput(inputEl, resultsEl, isPickup) {
 
     debounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+        const context = 'Gqeberha, Eastern Cape, South Africa';
+        const geocodeQuery = /south africa/i.test(query) ? query : `${query}, ${context}`;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=za&addressdetails=1&q=${encodeURIComponent(geocodeQuery)}&limit=5`);
         const results = await res.json();
 
         resultsEl.innerHTML = '';
@@ -311,27 +474,32 @@ function setupSearchInput(inputEl, resultsEl, isPickup) {
 
             if (hasActiveRide()) return;
 
-            const lat = parseFloat(item.lat);
-            const lng = parseFloat(item.lon);
+            const location = normalizeGeocodedLocation(item);
+            if (!location) {
+              if (typeof showToast === 'function') {
+                showToast('Unable to verify route location. Please select a valid South African address.', 'error', 4000);
+              }
+              return;
+            }
 
             inputEl.value = item.display_name;
             resultsEl.innerHTML = '';
             resultsEl.style.display = 'none';
 
             if (isPickup) {
-              pickupLocation = { lat, lng, address: item.display_name };
+              pickupLocation = location;
               if (pickupMarker) map.removeLayer(pickupMarker);
-              pickupMarker = L.marker([lat, lng]).addTo(map).bindPopup('📍 Pickup').openPopup();
+              pickupMarker = L.marker([location.lat, location.lng]).addTo(map).bindPopup('📍 Pickup').openPopup();
             } else {
-              dropoffLocation = { lat, lng, address: item.display_name };
+              dropoffLocation = location;
               if (dropoffMarker) map.removeLayer(dropoffMarker);
-              dropoffMarker = L.marker([lat, lng]).addTo(map).bindPopup('🔴 Dropoff').openPopup();
+              dropoffMarker = L.marker([location.lat, location.lng]).addTo(map).bindPopup('🔴 Dropoff').openPopup();
             }
 
             if (pickupLocation && dropoffLocation) {
               drawRoutePreview();
             } else {
-              map.setView([lat, lng], 14);
+              map.setView([location.lat, location.lng], 14);
             }
 
             checkReadyToRequest();
@@ -432,11 +600,41 @@ if (resetBtn) {
 // ===============================
 
 async function drawRoadRoute(pickup, dropoff) {
-  if (!pickup || !dropoff) return;
+  // Validate coordinates using comprehensive validation
+  const validation = validateRouteCoordinates(pickup, dropoff);
+  if (!validation.valid) {
+    console.error('Invalid route coordinates', {
+      pickup,
+      dropoff
+    });
+    console.warn('⚠️ Skipping OSRM request; markers will remain visible only', validation.errors);
+    return;
+  }
+
+  const { pickup: normalizedPickup, dropoff: normalizedDropoff } = validation;
+  const distanceKm = haversineDistanceKm(normalizedPickup, normalizedDropoff);
+  console.log('Route Request', {
+    pickup: normalizedPickup,
+    dropoff: normalizedDropoff,
+    distanceKm
+  });
 
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${dropoff.lng},${dropoff.lat}?overview=full&geometries=geojson`;
+    // Build OSRM URL with validated coordinates (requires lng,lat order)
+    const url = `https://router.project-osrm.org/route/v1/driving/${normalizedPickup.lng},${normalizedPickup.lat};${normalizedDropoff.lng},${normalizedDropoff.lat}?overview=full&geometries=geojson`;
+
+    console.log('📍 Fetching road route from OSRM', {
+      url: url.substring(0, 100) + '...',
+      pickup: { lat: normalizedPickup.lat, lng: normalizedPickup.lng },
+      dropoff: { lat: normalizedDropoff.lat, lng: normalizedDropoff.lng }
+    });
+
     const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error(`OSRM returned ${res.status}: ${res.statusText}`);
+    }
+
     const data = await res.json();
 
     if (!data.routes || data.routes.length === 0) throw new Error("No route found");
@@ -454,12 +652,18 @@ async function drawRoadRoute(pickup, dropoff) {
 
     map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
   } catch (err) {
-    console.warn('OSRM routing failed, drawing fallback line:', err);
+    console.warn('⚠️ OSRM routing failed, drawing fallback line:', err.message);
+    console.log('Fallback using coordinates:', {
+      pickup: normalizedPickup,
+      dropoff: normalizedDropoff
+    });
+
     if (routeLine) map.removeLayer(routeLine);
+    // Draw straight line fallback
     routeLine = L.polyline([
-      [pickup.lat, pickup.lng],
-      [dropoff.lat, dropoff.lng]
-    ], { color: '#00d4aa', weight: 4, dashArray: '6, 8' }).addTo(map);
+      [normalizedPickup.lat, normalizedPickup.lng],
+      [normalizedDropoff.lat, normalizedDropoff.lng]
+    ], { color: '#fbbf24', weight: 4, dashArray: '6, 8' }).addTo(map);
   }
 }
 
@@ -506,11 +710,28 @@ function haversineDistanceKm(a, b) {
 
 async function fetchRouteCoords(pointA, pointB) {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${pointA.lng},${pointA.lat};${pointB.lng},${pointB.lat}?overview=full&geometries=geojson`;
+    const validation = validateRouteCoordinates(pointA, pointB);
+    if (!validation.valid) {
+      console.error('Invalid route coordinates', {
+        pickup: pointA,
+        dropoff: pointB
+      });
+      console.warn('Skipping OSRM route fetch:', validation.errors);
+      return null;
+    }
+
+    const { pickup, dropoff } = validation;
+
+    // OSRM expects lng,lat order
+    const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${dropoff.lng},${dropoff.lat}?overview=full&geometries=geojson`;
+    
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data.routes || data.routes.length === 0) return null;
+    if (!data.routes || data.routes.length === 0) {
+      console.warn('No route found for coordinates');
+      return null;
+    }
 
     return {
       coords: data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]),
@@ -518,7 +739,7 @@ async function fetchRouteCoords(pointA, pointB) {
       durationSec: data.routes[0].duration
     };
   } catch (err) {
-    console.warn('fetchRouteCoords failed:', err);
+    console.warn('fetchRouteCoords failed:', err.message);
     return null;
   }
 }
@@ -661,19 +882,48 @@ async function startSimulatedApproach(ride, phaseKey, targetStop) {
     lastDriverPositionRider = { lat: startPoint.lat, lng: startPoint.lng };
   }
 
-  // Fetch route
+  // ==========================================================
+  // FIX: Validate coordinates and fetch route properly
+  // ==========================================================
   console.log('🔄 Fetching route from OSRM...');
-  const route = await fetchRouteCoords(startPoint, targetStop);
-  
+  let route = null;
+  let coords = [];
+  let distanceKm = 0;
+
+  // Validate coordinates
+  const validStart = startPoint && typeof startPoint.lat === 'number' && typeof startPoint.lng === 'number' && !isNaN(startPoint.lat) && !isNaN(startPoint.lng);
+  const validTarget = targetStop && typeof targetStop.lat === 'number' && typeof targetStop.lng === 'number' && !isNaN(targetStop.lat) && !isNaN(targetStop.lng);
+
+  if (validStart && validTarget) {
+    try {
+      route = await fetchRouteCoords(startPoint, targetStop);
+    } catch (err) {
+      console.warn('⚠️ Route fetch failed:', err.message);
+      route = null;
+    }
+  } else {
+    console.warn('⚠️ Invalid coordinates for route fetch, using fallback');
+  }
+
   if (simRideId !== ride._id || simPhase !== phaseKey) {
     console.log('⚠️ Simulation cancelled during fetch');
     return;
   }
 
-  const coords = route ? route.coords : [[startPoint.lat, startPoint.lng], [targetStop.lat, targetStop.lng]];
-  const distanceKm = route ? route.distanceKm : haversineDistanceKm(startPoint, targetStop);
+  // Use route or fallback
+  if (route && route.coords && route.coords.length > 0) {
+    coords = route.coords;
+    distanceKm = route.distanceKm || haversineDistanceKm(startPoint, targetStop);
+  } else {
+    // Fallback: straight line with valid coordinates
+    const fallbackStart = validStart ? startPoint : { lat: -33.9608, lng: 25.6022 };
+    const fallbackTarget = validTarget ? targetStop : { lat: -33.9608, lng: 25.6022 };
+    coords = [[fallbackStart.lat, fallbackStart.lng], [fallbackTarget.lat, fallbackTarget.lng]];
+    distanceKm = haversineDistanceKm(fallbackStart, fallbackTarget);
+    console.log('📍 Using fallback straight line route');
+  }
 
-  console.log('📍 Route fetched:', coords.length, 'points,', distanceKm.toFixed(2), 'km');
+  console.log('📍 Route:', coords.length, 'points,', distanceKm.toFixed(2), 'km');
 
   // ==========================================================
   // SAME DURATION CALCULATION AS DRIVER SIDE (3x speed)
@@ -1331,14 +1581,9 @@ function startRideStatusFlow(ride) {
           <button id="message-driver-btn" class="btn-driver-action" style="padding: 10px; border: 1px solid var(--rb-border); border-radius: 8px; background: transparent; color: var(--rb-text); font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">💬 Message</button>
         </div>
 
-        <!-- Cancel Button -->
-        <button id="cancel-driver-btn" class="btn-cancel-ride-secondary" style="width: 100%; padding: 10px; border: 1px solid var(--rb-border-strong); border-radius: 8px; background: transparent; color: var(--rb-text-secondary); font-weight: 500; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;">
+        <!-- Cancel Button (Rider's only action during trip) -->
+        <button id="cancel-driver-btn" class="btn-cancel-ride-secondary" style="width: 100%; padding: 10px; border: 1px solid var(--rb-border-strong); border-radius: 8px; background: transparent; color: var(--rb-text-secondary); font-weight: 500; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;">
           Cancel Ride
-        </button>
-
-        <!-- End Trip Button -->
-        <button id="end-trip-btn" class="complete-btn" style="width: 100%; padding: 12px; background: #0fbd8c; color: #06231b; border: none; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: all 0.2s;">
-          ✅ End Trip
         </button>
       `;
     }
@@ -1370,24 +1615,7 @@ function startRideStatusFlow(ride) {
       newCancelBtn.addEventListener('click', handleCancelRide);
     }
 
-    const endTripBtn = document.getElementById('end-trip-btn');
-    if (endTripBtn) {
-      endTripBtn.addEventListener('click', () => {
-        const currentPos = lastDriverPositionRider;
-        const farFromDropoff = currentPos && ride.dropoff
-          ? haversineDistanceKm(currentPos, ride.dropoff) > 0.3
-          : false;
-
-        if (farFromDropoff) {
-          const confirmed = confirm(
-            "It looks like you're still some distance from the dropoff. End the trip anyway?"
-          );
-          if (!confirmed) return;
-        }
-
-        updateRideFromRider(ride._id, 'completed');
-      });
-    }
+    // No end trip button for riders - only drivers can end trips
 
     // ==========================================================
     // FIX: Start animation for IN_PROGRESS state
@@ -1529,6 +1757,22 @@ if (requestBtn) {
       return;
     }
 
+    const routeValidation = validateRouteCoordinates(pickupLocation, dropoffLocation);
+    if (!routeValidation.valid) {
+      console.error('Invalid route coordinates', {
+        pickup: pickupLocation,
+        dropoff: dropoffLocation
+      });
+      if (typeof showToast === 'function') {
+        showToast('Unable to verify route location. Please select a valid South African address.', 'error', 4000);
+      }
+      return;
+    }
+
+    const { pickup, dropoff } = routeValidation;
+    const distanceKm = currentRideEstimate?.distanceKm ?? haversineDistanceKm(pickup, dropoff);
+    console.log('Route Request', { pickup, dropoff, distanceKm });
+
     requestBtn.disabled = true;
     requestBtn.textContent = 'Requesting...';
 
@@ -1540,9 +1784,9 @@ if (requestBtn) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          pickup: pickupLocation,
-          dropoff: dropoffLocation,
-          distanceKm: currentRideEstimate?.distanceKm ?? null,
+          pickup,
+          dropoff,
+          distanceKm,
           durationMin: currentRideEstimate?.durationMin ?? null,
           price: currentRideEstimate?.price ?? null
         })
@@ -1553,6 +1797,11 @@ if (requestBtn) {
       if (!res.ok) {
         throw new Error(data.message || 'Could not request ride');
       }
+
+      const ride = data;
+      console.log('Ride created', ride);
+      console.log('Pickup coordinates', ride.pickupCoordinates || ride.pickup);
+      console.log('Dropoff coordinates', ride.dropoffCoordinates || ride.dropoff);
 
       if (typeof showToast === 'function') {
         showToast('Ride requested! Finding nearby driver...', 'success', 3000);
@@ -1835,6 +2084,11 @@ async function loadRides() {
     if (!res.ok) return;
 
     const rides = await res.json();
+    rides.forEach(ride => {
+      console.log('Ride loaded', ride);
+      console.log('Pickup coordinates', ride.pickupCoordinates || ride.pickup);
+      console.log('Dropoff coordinates', ride.dropoffCoordinates || ride.dropoff);
+    });
     passengerRides = rides;
 
     renderRideList(getFilteredRides());
