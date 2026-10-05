@@ -1375,6 +1375,16 @@ function startRideStatusFlow(ride) {
     const vehicleDesc = isDriverPopulated ? [driver.vehicleColor, driver.vehicleMake, driver.vehicleModel].filter(Boolean).join(' ') : 'Loading vehicle...';
     const plate = isDriverPopulated ? (driver.licensePlate || 'NO PLATE') : '--';
 
+    // Vehicle photo — resolve relative /uploads path
+    const vehiclePhotoUrl = (isDriverPopulated && driver.vehiclePhoto && driver.vehiclePhoto.trim() !== '')
+      ? driver.vehiclePhoto
+      : null;
+
+    const vehiclePhotoHtml = vehiclePhotoUrl
+      ? `<img src="${vehiclePhotoUrl}" alt="Vehicle" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.querySelector('.vehicle-photo-fallback').style.display='flex';">
+           <span class="vehicle-photo-fallback" style="display: none; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 22px;">🚗</span>`
+      : `<span style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 22px;">🚗</span>`;
+
     const driverContent = document.querySelector('#sheet-driver .sheet-content') || document.querySelector('#sheet-driver');
     if (driverContent) {
       driverContent.innerHTML = `
@@ -1397,9 +1407,11 @@ function startRideStatusFlow(ride) {
           🚗 Driver is on the way to your pickup
         </div>
 
-        <!-- Driver Profile -->
+        <!-- Driver Profile with Vehicle Photo -->
         <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 12px;">
-          <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--rb-teal-glow-soft); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; border: 2px solid var(--rb-border-teal);">👤</div>
+          <div style="width: 64px; height: 64px; border-radius: 12px; background: var(--rb-surface); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 2px solid var(--rb-border-teal);">
+            ${vehiclePhotoHtml}
+          </div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 1rem; font-weight: 700; color: var(--rb-text);">${driverName}</div>
             <div style="font-size: 0.8rem; color: var(--rb-text-secondary);">⭐ ${driverRating} · ${vehicleDesc}</div>
@@ -1520,6 +1532,15 @@ function startRideStatusFlow(ride) {
     const vehicleDesc = isDriverPopulated ? [driver.vehicleColor, driver.vehicleMake, driver.vehicleModel].filter(Boolean).join(' ') : 'Standard Vehicle';
     const plate = isDriverPopulated ? (driver.licensePlate || 'NO PLATE') : 'NO PLATE';
 
+    // Vehicle photo — resolve relative /uploads path
+    const vehiclePhotoUrl = (isDriverPopulated && driver.vehiclePhoto && driver.vehiclePhoto.trim() !== '')
+      ? driver.vehiclePhoto
+      : null;
+
+    const vehiclePhotoHtml = vehiclePhotoUrl
+      ? `<img src="${vehiclePhotoUrl}" alt="Vehicle" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.querySelector('.vehicle-photo-fallback').style.display='flex';">
+           <span class="vehicle-photo-fallback" style="display: none; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 22px;">🚗</span>`
+      : `<span style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; font-size: 22px;">🚗</span>`;
     const driverContent = document.querySelector('#sheet-driver .sheet-content') || document.querySelector('#sheet-driver');
     if (driverContent) {
       driverContent.innerHTML = `
@@ -1565,7 +1586,18 @@ function startRideStatusFlow(ride) {
           <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--rb-teal-glow-soft); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; border: 2px solid var(--rb-border-teal);">👤</div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 1rem; font-weight: 700; color: var(--rb-text);">${driverName}</div>
-            <div style="font-size: 0.8rem; color: var(--rb-text-secondary);">⭐ ${driverRating} · ${vehicleDesc}</div>
+            <div style="font-size: 0.8rem; color: var(--rb-text-secondary);">⭐ ${driverRating}</div>
+          </div>
+        </div>
+
+        <!-- Vehicle Card with Photo -->
+        <div style="background: var(--rb-surface); border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;">
+          <div style="width: 56px; height: 56px; border-radius: 8px; background: var(--rb-bg-1); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1px solid var(--rb-border-teal);">
+            ${vehiclePhotoHtml}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; color: var(--rb-text-muted); font-weight: 700; letter-spacing: 0.04em;">Vehicle</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--rb-text);">${vehicleDesc}</div>
           </div>
         </div>
 

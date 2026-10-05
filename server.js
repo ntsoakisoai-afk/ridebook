@@ -495,6 +495,30 @@ app.patch('/api/rides/:id', auth, async (req, res) => {
     // Set inProgressAt when status changes to 'in_progress'
     // ==========================================================
     if (status === 'in_progress') {
+      // Verify the current driver is the one assigned to this ride
+      const existingRide = await Ride.findById(rideId);
+      if (!existingRide) {
+        return res.status(404).json({ message: 'Ride not found' });
+      }
+
+      let assignedDriverId = null;
+      if (existingRide.driver) {
+        assignedDriverId = existingRide.driver.toString();
+      }
+
+      if (req.user.role !== 'driver') {
+        return res.status(403).json({ message: 'Only drivers can start trips' });
+      }
+
+      if (!assignedDriverId) {
+        // Auto-assign if no driver
+        updateFields.driver = req.user.id;
+      } else if (assignedDriverId !== req.user.id.toString()) {
+        return res.status(403).json({
+          message: 'You are not the driver assigned to this ride'
+        });
+      }
+
       updateFields.inProgressAt = new Date();
     }
 

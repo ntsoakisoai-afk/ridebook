@@ -2268,6 +2268,23 @@ button:focus-visible {
   letter-spacing: 0.02em;
 }
 
+/* =========================================
+   DRIVER RIDES CONTAINER — GRID LAYOUT
+========================================= */
+
+#driver-rides {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  align-items: start;
+}
+
+#driver-rides > .empty-state,
+#driver-rides > .active-trip-screen {
+  grid-column: 1 / -1;
+}
 
 /* =========================================
    RESPONSIVE
@@ -2450,25 +2467,23 @@ button:focus-visible {
   }
 
   /* ===== FIX: Ride status sheet - Uber-style bottom sheet ===== */
+ /* ===== Ride status sheet: proper bottom sheet on mobile ===== */
   .ride-status-sheet {
-    position: absolute;
-    bottom: 0;
+    position: fixed;
     left: 0;
     right: 0;
+    bottom: 0;
+    top: auto;
+    transform: none;
     width: 100%;
     max-width: 100%;
-    transform: translateY(100%);
-    border-radius: 16px 16px 0 0;
-    padding: 10px 12px 14px;
-    max-height: 50vh;
+    max-height: 65vh;
     overflow-y: auto;
-    background: var(--rb-card);
-    border: 1px solid var(--rb-border-strong);
+    border-radius: 18px 18px 0 0;
+    border-left: none;
+    border-right: none;
     border-bottom: none;
-    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 200;
-    pointer-events: none;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   }
 
   .ride-status-sheet.visible {
@@ -2624,7 +2639,18 @@ button:focus-visible {
     font-size: 0.65rem;
   }
 
-  /* ===== FIX: Ride request cards ===== */
+  /* ===== FIX: Ride request cards — force single column ===== */
+  #driver-rides {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* ===== FIX: Ride request cards — single column on mobile ===== */
+  #driver-rides {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
   .ride-request-card {
     max-width: 100%;
     padding: 8px 10px;
@@ -2738,9 +2764,6 @@ button:focus-visible {
     height: 200px;
   }
 
-  #driver-rides {
-    max-width: 100%;
-  }
 
   .active-trip-screen {
     max-width: 100%;
@@ -2821,10 +2844,11 @@ button:focus-visible {
   }
 
   /* ===== FIX: Modal ===== */
+  /* ===== Rating modal: safe-area padding on mobile ===== */
   .modal-card {
-    max-width: 340px;
-    padding: 16px 14px;
-    margin: 16px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
 
   .modal-card h2 {
@@ -2835,6 +2859,76 @@ button:focus-visible {
     font-size: 1.6rem;
     gap: 4px;
   }
+
+  .location-input-group {
+    margin-bottom: 4px;
+  }
+
+  /* ← paste the new driver-mobile block here, right after your last existing rule */
+
+  /* ===== Driver dashboard: un-fix sidebar, stack layout ===== */
+  .driver-layout {
+    flex-direction: column;
+    margin-left: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .driver-sidebar {
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    max-height: 40vh;
+    min-height: auto;
+    padding: 10px 12px;
+    box-shadow: none;
+    border-bottom: 1px solid var(--rb-border);
+    z-index: 100;
+  }
+
+  .driver-sidebar h2 {
+    font-size: 1rem;
+    margin-bottom: 6px;
+  }
+
+  .driver-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+
+  .driver-sidebar .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .driver-sidebar nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .driver-content {
+    flex: 1;
+    width: 100%;
+    height: auto;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  #driver-map {
+    height: 200px;
+    margin-bottom: 10px;
+  }
+
 }
 
 @media (max-width: 375px) {
@@ -2965,10 +3059,11 @@ button:focus-visible {
 
   #driver-rides {
     max-width: 100%;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
 
   .ride-request-card {
-    max-width: 100%;
+    max-width: none;
   }
 
   .history-card {
@@ -4137,19 +4232,37 @@ button:focus-visible {
 }
 
 /* =========================================
+   DRIVER RIDES CONTAINER - GRID LAYOUT
+========================================= */
+
+#driver-rides {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  align-items: start;
+}
+
+#driver-rides > .empty-state,
+#driver-rides > .active-trip-screen {
+  grid-column: 1 / -1;
+}
+
+/* =========================================
    DRIVER RIDE CARDS (Compact)
 ========================================= */
 
 /* Ride Request Card */
 .ride-request-card {
   width: 100%;
-  max-width: 480px;
+  max-width: none;
   box-sizing: border-box;
   background: var(--rb-card, #131b29);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
   padding: 12px 14px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: all 0.2s;
 }
@@ -4359,12 +4472,12 @@ button:focus-visible {
 
 .ride-request-card {
     width: 100%;
-    max-width: 280px;
+    max-width: none;
     background: var(--rb-card, #131b29);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 10px;
     padding: 12px 14px;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     transition: all 0.2s ease;
 }

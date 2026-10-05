@@ -21,6 +21,48 @@ if (driverName) {
 }
 
 // ===============================
+// DRIVER PROFILE VALIDATION
+// ===============================
+
+/**
+ * Checks whether the driver has completed the required profile fields
+ * (phone, vehicle make, vehicle model, vehicle color, license plate)
+ * before being allowed to accept rides.
+ */
+function isDriverProfileComplete() {
+  if (!user) return false;
+
+  const required = [
+    { key: 'phone',         label: 'Phone number' },
+    { key: 'vehicleMake',   label: 'Vehicle make' },
+    { key: 'vehicleModel',  label: 'Vehicle model' },
+    { key: 'vehicleColor',  label: 'Vehicle color' },
+    { key: 'licensePlate',  label: 'License plate' }
+  ];
+
+  const missing = required.filter(field => {
+    const value = user[field.key];
+    return !value || (typeof value === 'string' && value.trim() === '');
+  });
+
+  if (missing.length > 0) {
+    console.warn('⚠️ Driver profile incomplete. Missing:', missing.map(f => f.label).join(', '));
+    return false;
+  }
+
+  return true;
+}
+
+// Redirect driver to profile page if incomplete on page load
+if (!isDriverProfileComplete()) {
+  console.warn('⚠️ Driver profile incomplete — redirecting to profile page');
+  showToast('Please complete your profile before accepting rides.', 'warning', 4000);
+  setTimeout(() => {
+    window.location.href = 'profile.html';
+  }, 1200);
+}
+
+// ===============================
 // MAP SETUP
 // ===============================
 
@@ -715,6 +757,13 @@ function renderRideRequestCard(ride) {
   const declineBtn = card.querySelector('.decline-btn');
 
   acceptBtn.addEventListener('click', () => {
+    if (typeof isDriverProfileComplete === 'function' && !isDriverProfileComplete()) {
+      showToast('Please complete your profile before accepting rides.', 'warning', 4000);
+      setTimeout(() => window.location.href = 'profile.html', 800);
+      return;
+    }
+    acceptBtn.disabled = true;
+    acceptBtn.textContent = 'Accepting...';
     updateRide(ride._id, 'accepted');
   });
 
@@ -736,10 +785,19 @@ function renderActiveTripScreen(ride) {
   
   const existingCard = document.querySelector('.active-trip-screen');
   const existingRideId = existingCard ? existingCard.dataset.rideId : null;
+  const existingStage = existingCard ? existingCard.dataset.stage : null;
   
-  if (existingRideId === ride._id && existingCard) {
+  // If same ride AND same stage, just update the UI values
+  if (existingRideId === ride._id && existingStage === stage && existingCard) {
     updateActiveTripUI(ride, stage);
     return;
+  }
+
+  // If same ride but different stage (e.g. accepted → in_progress),
+  // remove the old card so it gets fully re-rendered
+  if (existingRideId === ride._id && existingStage !== stage && existingCard) {
+    console.log('🔄 Stage changed:', existingStage, '→', stage, '— re-rendering');
+    existingCard.remove();
   }
 
   setTimeout(() => {
@@ -859,9 +917,21 @@ function renderActiveTripScreen(ride) {
     const pickupBtn = document.getElementById('confirm-pickup-btn');
     if (pickupBtn) {
       pickupBtn.onclick = function() {
-        if (currentMapRideId) {
-          updateRide(currentMapRideId, 'in_progress');
+        if (!currentMapRideId) {
+          console.warn('⚠️ No current ride ID — cannot confirm pickup');
+          showToast('Ride information missing. Please refresh.', 'error', 3000);
+          return;
         }
+
+        // Immediate visual feedback
+        pickupBtn.disabled = true;
+        pickupBtn.textContent = '⏳ Confirming...';
+
+        // Clear the active trip card immediately so it re-renders on next poll
+        const activeCard = document.querySelector('.active-trip-screen');
+        if (activeCard) activeCard.remove();
+
+        updateRide(currentMapRideId, 'in_progress');
       };
     }
   }, 100);
@@ -895,6 +965,75 @@ function renderAvailableRidesList(rides) {
 }
 
 // ===============================
+// PROFILE INCOMPLETE BANNER
+// ===============================
+
+function renderProfileIncompleteBanner() {
+  const existingBanner = document.getElementById('profile-incomplete-banner');
+  const profileComplete = isDriverProfileComplete();
+
+  if (profileComplete) {
+    // Remove banner if profile is now complete
+    if (existingBanner) existingBanner.remove();
+    return;
+  }
+
+  if (existingBanner) return; // Already showing
+
+  const banner = document.createElement('div');
+  banner.id = 'profile-incomplete-banner';
+  banner.style.cssText = `
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 480px;
+    flex-wrap: wrap;
+  `;
+
+  banner.innerHTML = `
+    <div style="flex: 1; min-width: 200px;">
+      <div style="font-size: 0.85rem; font-weight: 700; color: #f59e0b; margin-bottom: 2px;">
+        ⚠️ Profile Incomplete
+      </div>
+      <div style="font-size: 0.78rem; color: var(--rb-text-secondary); line-height: 1.4;">
+        You must complete your phone, vehicle, and license plate details before you can accept rides.
+      </div>
+    </div>
+    <button
+      onclick="window.location.href='profile.html'"
+      style="
+        padding: 8px 14px;
+        background: #f59e0b;
+        color: #1a1a1a;
+        border: none;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        cursor: pointer;
+        white-space: nowrap;
+      "
+    >
+      Complete Profile
+    </button>
+  `;
+
+  // Insert at top of driver-content, before the map
+  const driverContent = document.querySelector('.driver-content');
+  const mapEl = document.getElementById('driver-map');
+  if (driverContent && mapEl) {
+    driverContent.insertBefore(banner, mapEl);
+  } else if (driverContent) {
+    driverContent.insertBefore(banner, driverContent.firstChild);
+  }
+}
+
+// ===============================
 // LOAD RIDES
 // ===============================
 
@@ -913,6 +1052,9 @@ async function loadPendingRides() {
     }
 
     const rides = await response.json();
+
+    // Show a persistent banner if profile is incomplete
+    renderProfileIncompleteBanner();
 
     const myActiveTrip = rides.find(
       r => r.status === 'accepted' || r.status === 'in_progress'
@@ -953,6 +1095,13 @@ async function loadPendingRides() {
 }
 
 async function updateRide(id, status) {
+  // Guard: Block 'accepted' status if profile is incomplete
+  if (status === 'accepted' && typeof isDriverProfileComplete === 'function' && !isDriverProfileComplete()) {
+    showToast('Please complete your profile (phone, vehicle details, number plate) before accepting rides.', 'warning', 4000);
+    window.location.href = 'profile.html';
+    return;
+  }
+
   try {
     const response = await fetch(`/api/rides/${id}`, {
       method: 'PATCH',
@@ -977,27 +1126,64 @@ async function updateRide(id, status) {
     }
 
     const updatedRide = await response.json();
+    console.log('✅ Ride updated:', { id, status, ride: updatedRide });
 
+    // Handle each status transition
     if (status === 'completed') {
       clearTripLayers();
       activeTripId = null;
       resetAnimation();
       showToast('Trip completed! 🎉', 'success', 3000);
+      // Force immediate refresh
+      await loadPendingRides();
     } else if (status === 'in_progress') {
       showToast('Pickup confirmed! Heading to destination.', 'success', 3000);
+
+      // Force immediate refresh so UI moves from "to_pickup" → "to_dropoff"
+      await loadPendingRides();
+
+      // Extra safety: if for some reason the ride card still shows the old state,
+      // force a full re-render of the active trip screen
+      setTimeout(async () => {
+        const existingCard = document.querySelector('.active-trip-screen');
+        const currentStage = existingCard?.dataset?.stage;
+        if (currentStage === 'to_pickup') {
+          console.log('🔄 Force re-rendering active trip screen after in_progress transition');
+          // Fetch fresh ride data and re-render
+          try {
+            const freshRes = await fetch(`/api/rides/${id}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (freshRes.ok) {
+              const freshRide = await freshRes.json();
+              if (freshRide.status === 'in_progress') {
+                renderActiveTripScreen(freshRide);
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to force re-render:', e);
+          }
+        }
+      }, 500);
+
     } else if (status === 'accepted') {
       showToast('Ride accepted! Heading to pickup.', 'success', 3000);
+      await loadPendingRides();
     } else if (status === 'cancelled') {
       showToast('Ride cancelled.', 'info', 2000);
+      await loadPendingRides();
+    } else {
+      loadPendingRides();
     }
-
-    loadPendingRides();
 
   } catch (err) {
     console.error('Error updating ride:', err);
     if (typeof showToast === 'function') {
-      showToast(err.message, 'error', 3000);
+      showToast(err.message || 'Failed to update ride. Please try again.', 'error', 3000);
     }
+
+    // On error, force a refresh to restore the correct UI state
+    setTimeout(() => loadPendingRides(), 500);
   }
 }
 
