@@ -317,15 +317,14 @@ if (filterSelect) {
     });
 }
 
-// Date filter buttons
-document.querySelectorAll('.date-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.date-filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentDateFilter = btn.dataset.filter;
+// Date filter dropdown
+const dateFilterSelect = document.getElementById('date-filter-select');
+if (dateFilterSelect) {
+    dateFilterSelect.addEventListener('change', () => {
+        currentDateFilter = dateFilterSelect.value;
         renderHistory();
     });
-});
+}
 
 // ===============================
 // LOGOUT

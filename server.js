@@ -290,6 +290,138 @@ app.get('/api/driver/history', auth, async (req, res) => {
   }
 });
 
+const Redemption = require('./models/Redemption');
+
+// ---------- DRIVER WALLET ROUTES ----------
+
+// Get driver wallet summary: earnings, redeemed, available balance, history
+app.get('/api/driver/wallet', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'driver') {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    // Total earned from completed rides
+    const completedRides = await Ride.find({
+      driver: req.user.id,
+      status: 'completed'
+    }).select('price createdAt');
+
+    const totalEarned = completedRides.reduce(
+      (sum, r) => sum + (Number(r.price) || 0),
+      0
+    );
+
+    // Redemptions
+    const redemptions = await Redemption.find({ driver: req.user.id })
+      .sort({ createdAt: -1 });
+
+    const totalRedeemedPaid = redemptions
+      .filter(r => r.status === 'paid')
+      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+    const totalRedeemedPending = redemptions
+      .filter(r => r.status === 'pending')
+      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+    const availableBalance = Math.max(
+      0,
+      totalEarned - totalRedeemedPaid - totalRedeemedPending
+    );
+
+    res.json({
+      totalEarned: Number(totalEarned.toFixed(2)),
+      totalRedeemedPaid: Number(totalRedeemedPaid.toFixed(2)),
+      totalRedeemedPending: Number(totalRedeemedPending.toFixed(2)),
+      availableBalance: Number(availableBalance.toFixed(2)),
+      completedRideCount: completedRides.length,
+      redemptions: redemptions.map(r => ({
+        _id: r._id,
+        amount: r.amount,
+        status: r.status,
+        method: r.method,
+        note: r.note,
+        requestedAt: r.requestedAt,
+        processedAt: r.processedAt
+      }))
+    });
+  } catch (err) {
+    console.error('Wallet error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Request a redemption
+app.post('/api/driver/wallet/redeem', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'driver') {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const { amount, method, note } = req.body;
+    const requestedAmount = Number(amount);
+
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid redemption amount.' });
+    }
+
+    // Recalculate available balance
+    const completedRides = await Ride.find({
+      driver: req.user.id,
+      status: 'completed'
+    }).select('price');
+
+    const totalEarned = completedRides.reduce(
+      (sum, r) => sum + (Number(r.price) || 0),
+      0
+    );
+
+    const existingRedemptions = await Redemption.find({ driver: req.user.id });
+
+    const committed = existingRedemptions
+      .filter(r => r.status === 'paid' || r.status === 'pending')
+      .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+    const availableBalance = Math.max(0, totalEarned - committed);
+
+    // Minimum redemption threshold
+    const MIN_REDEEM = 50;
+    if (requestedAmount < MIN_REDEEM) {
+      return res.status(400).json({
+        message: `Minimum redemption is R${MIN_REDEEM}.`
+      });
+    }
+
+    if (requestedAmount > availableBalance) {
+      return res.status(400).json({
+        message: `Amount exceeds available balance of R${availableBalance.toFixed(2)}.`
+      });
+    }
+
+    const redemption = await Redemption.create({
+      driver: req.user.id,
+      amount: Number(requestedAmount.toFixed(2)),
+      method: ['bank_transfer', 'cash', 'eft'].includes(method) ? method : 'bank_transfer',
+      note: typeof note === 'string' ? note.slice(0, 200) : '',
+      status: 'pending'
+    });
+
+    res.status(201).json({
+      message: 'Redemption request submitted.',
+      redemption: {
+        _id: redemption._id,
+        amount: redemption.amount,
+        status: redemption.status,
+        method: redemption.method,
+        requestedAt: redemption.requestedAt
+      }
+    });
+  } catch (err) {
+    console.error('Redeem error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/rider/history', auth, async (req, res) => {
   try {
     if (req.user.role !== "rider") {

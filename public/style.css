@@ -5213,3 +5213,349 @@ button:focus-visible {
         gap: 8px;
     }
 }
+
+/* =========================================
+   DRIVER WALLET
+========================================= */
+
+.wallet-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.wallet-card {
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-card-primary {
+  border-color: var(--rb-border-teal);
+  background: linear-gradient(180deg, rgba(0,212,170,0.06) 0%, var(--rb-surface) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.wallet-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--rb-text-muted);
+}
+
+.wallet-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: var(--rb-text);
+  letter-spacing: -0.5px;
+}
+
+.wallet-card-primary .wallet-value {
+  color: var(--rb-teal);
+}
+
+.wallet-sub {
+  font-size: 0.75rem;
+  color: var(--rb-text-muted);
+}
+
+.wallet-redeem-btn {
+  margin-top: 10px;
+  padding: 10px 16px;
+  background: var(--rb-teal);
+  color: #06231b;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s var(--rb-ease);
+}
+
+.wallet-redeem-btn:hover {
+  background: var(--rb-teal-dark);
+}
+
+/* Redeem panel */
+
+.wallet-redeem-panel {
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border-strong);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  max-width: 480px;
+}
+
+.wallet-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.wallet-panel-header h2 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: var(--rb-text);
+}
+
+.wallet-close {
+  background: transparent;
+  border: none;
+  color: var(--rb-text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.wallet-close:hover {
+  background: var(--rb-surface-raised);
+  color: var(--rb-text);
+}
+
+.wallet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wallet-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.wallet-form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rb-text-secondary);
+}
+
+.wallet-form-group input,
+.wallet-form-group select {
+  padding: 10px 12px;
+  background: var(--rb-bg-1);
+  border: 1px solid var(--rb-border-strong);
+  border-radius: 8px;
+  color: var(--rb-text);
+  font-size: 0.9rem;
+  transition: border-color 0.15s var(--rb-ease);
+}
+
+.wallet-form-group input:focus,
+.wallet-form-group select:focus {
+  outline: none;
+  border-color: var(--rb-teal);
+  box-shadow: 0 0 0 3px var(--rb-teal-glow);
+}
+
+.wallet-form-group small {
+  font-size: 0.7rem;
+  color: var(--rb-text-muted);
+}
+
+.wallet-submit {
+  padding: 12px;
+  background: var(--rb-teal);
+  color: #06231b;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s var(--rb-ease);
+}
+
+.wallet-submit:hover {
+  background: var(--rb-teal-dark);
+}
+
+/* Redemption history */
+
+.wallet-section-title {
+  font-size: 1.1rem;
+  color: var(--rb-text);
+  margin: 8px 0 14px;
+}
+
+.wallet-history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 640px;
+}
+
+.wallet-history-row {
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.wallet-history-amount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--rb-text);
+  margin-bottom: 4px;
+}
+
+.wallet-history-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--rb-text-muted);
+}
+
+.wallet-history-note {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--rb-text-secondary);
+  font-style: italic;
+}
+
+.wallet-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wallet-status-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.wallet-status-paid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.wallet-status-failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.wallet-empty {
+  text-align: center;
+  padding: 40px 20px;
+  background: var(--rb-surface);
+  border: 1px dashed var(--rb-border-strong);
+  border-radius: 10px;
+  color: var(--rb-text-muted);
+  font-size: 0.85rem;
+}
+
+/* Wallet mobile */
+@media (max-width: 768px) {
+  .wallet-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .wallet-value {
+    font-size: 1.5rem;
+  }
+
+  .wallet-redeem-panel {
+    padding: 16px;
+  }
+}
+
+/* =========================================
+   RIDER HISTORY — FILTER ROW (Date + Search)
+========================================= */
+
+.history-filter-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.history-filter-row .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.history-filter-row .search-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.history-filter-row .filter-group label,
+.history-filter-row .search-group label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: var(--rb-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.history-filter-row .filter-select {
+  padding: 8px 12px;
+  background: var(--rb-bg-1);
+  border: 1px solid var(--rb-border-strong);
+  border-radius: 6px;
+  color: var(--rb-text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s var(--rb-ease);
+}
+
+.history-filter-row .filter-select:focus {
+  border-color: var(--rb-teal);
+  box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
+}
+
+.history-filter-row .search-input {
+  width: 100%;
+  max-width: 100%;
+  padding: 8px 12px;
+  background: var(--rb-bg-1);
+  border: 1px solid var(--rb-border-strong);
+  border-radius: 6px;
+  color: var(--rb-text);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s var(--rb-ease);
+}
+
+.history-filter-row .search-input:focus {
+  border-color: var(--rb-teal);
+  box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.15);
+}
+
+@media (max-width: 600px) {
+  .history-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-filter-row .filter-group,
+  .history-filter-row .search-group {
+    min-width: 0;
+    width: 100%;
+  }
+}

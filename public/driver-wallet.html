@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+  const storedUser = sessionStorage.getItem("user");
+  const storedToken = sessionStorage.getItem("token");
+  if (!storedToken || !storedUser) {
+    window.location.replace("login.html");
+  }
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver Wallet</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="driver-page">
+
+<div class="driver-layout">
+
+  <aside class="driver-sidebar">
+    <h2>RideBook</h2>
+    <div class="driver-user">
+      <div class="avatar">👤</div>
+      <h3 id="driverName"></h3>
+      <span class="online">🟢 Online</span>
+    </div>
+    <nav>
+      <button onclick="window.location.href='driver.html'">🚖 Dashboard</button>
+      <button class="active" onclick="window.location.href='driver-wallet.html'">💰 Wallet</button>
+      <button onclick="window.location.href='profile.html'">👤 My Profile</button>
+      <button onclick="window.location.href='history.html'">📜 Ride History</button>
+      <button class="logout-btn"
+        onclick="sessionStorage.clear();localStorage.clear();window.location.href='login.html'">
+        🚪 Logout
+      </button>
+    </nav>
+  </aside>
+
+  <main class="driver-content">
+
+    <h1>Wallet</h1>
+    <p>Track your earnings and request a redemption.</p>
+
+    <!-- Balance cards -->
+    <div class="wallet-cards" id="wallet-cards">
+      <div class="wallet-card wallet-card-primary">
+        <div class="wallet-label">Available to Redeem</div>
+        <div class="wallet-value" id="wallet-available">R0.00</div>
+        <button id="redeem-btn" class="wallet-redeem-btn">💸 Redeem</button>
+      </div>
+      <div class="wallet-card">
+        <div class="wallet-label">Total Earned</div>
+        <div class="wallet-value" id="wallet-total">R0.00</div>
+        <div class="wallet-sub" id="wallet-ride-count">0 completed rides</div>
+      </div>
+      <div class="wallet-card">
+        <div class="wallet-label">Redeemed</div>
+        <div class="wallet-value" id="wallet-redeemed">R0.00</div>
+        <div class="wallet-sub" id="wallet-pending">R0.00 pending</div>
+      </div>
+    </div>
+
+    <!-- Redeem form (hidden by default) -->
+    <div class="wallet-redeem-panel" id="redeem-panel" style="display:none;">
+      <div class="wallet-panel-header">
+        <h2>Request Redemption</h2>
+        <button id="close-redeem" class="wallet-close">×</button>
+      </div>
+
+      <form id="redeem-form" class="wallet-form">
+        <div class="wallet-form-group">
+          <label for="redeem-amount">Amount (R)</label>
+          <input type="number" id="redeem-amount" min="50" step="0.01" required placeholder="e.g. 250.00">
+          <small>Minimum R50. Available: <span id="redeem-available">R0.00</span></small>
+        </div>
+
+        <div class="wallet-form-group">
+          <label for="redeem-method">Method</label>
+          <select id="redeem-method">
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="eft">EFT</option>
+            <option value="cash">Cash</option>
+          </select>
+        </div>
+
+        <div class="wallet-form-group">
+          <label for="redeem-note">Note (optional)</label>
+          <input type="text" id="redeem-note" maxlength="200" placeholder="e.g. Pay to Capitec ...1234">
+        </div>
+
+        <button type="submit" class="wallet-submit">Submit Request</button>
+      </form>
+    </div>
+
+    <!-- Redemption history -->
+    <h2 class="wallet-section-title">Redemption History</h2>
+    <div id="redemption-list" class="wallet-history">
+      <div class="wallet-empty">Loading…</div>
+    </div>
+
+  </main>
+</div>
+
+<script src="toast.js"></script>
+<script src="driver-wallet.js"></script>
+</body>
+</html>

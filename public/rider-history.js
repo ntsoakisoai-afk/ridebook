@@ -23,6 +23,7 @@ const historyContainer = document.getElementById('history-rides');
 const filterSelect = document.getElementById('history-filter');
 const filterButtons = document.querySelectorAll('.filter-btn');
 const searchInput = document.getElementById('search-rides');
+const riderDateFilter = document.getElementById('rider-date-filter');
 
 // Statistics elements
 const statTotal = document.getElementById('stat-total');
@@ -36,6 +37,7 @@ const statUpcoming = document.getElementById('stat-upcoming');
 
 let allRides = [];
 let currentFilter = 'all';
+let currentDateFilter = 'all';
 let currentSearchTerm = '';
 
 // ===============================
@@ -93,8 +95,38 @@ function sortRidesNewestFirst(rides) {
   });
 }
 
+// ===============================
+// DATE FILTER HELPERS
+// ===============================
+
+function getRideDate(ride) {
+  return new Date(ride.createdAt || ride.updatedAt || Date.now());
+}
+
+function isToday(date) {
+  const today = new Date();
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
+}
+
+function isThisWeek(date) {
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  // Week starts on Monday
+  startOfWeek.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+  startOfWeek.setHours(0, 0, 0, 0);
+  return date >= startOfWeek;
+}
+
+function isThisMonth(date) {
+  const now = new Date();
+  return date.getMonth() === now.getMonth() &&
+         date.getFullYear() === now.getFullYear();
+}
+
 /**
- * Filter rides based on current filter and search term
+ * Filter rides based on status, date, and search term
  */
 function getFilteredRides() {
   let filtered = allRides;
@@ -102,6 +134,19 @@ function getFilteredRides() {
   // Apply status filter
   if (currentFilter !== 'all') {
     filtered = filtered.filter(ride => ride.status === currentFilter);
+  }
+
+  // Apply date filter
+  if (currentDateFilter !== 'all') {
+    filtered = filtered.filter(ride => {
+      const date = getRideDate(ride);
+      switch (currentDateFilter) {
+        case 'today': return isToday(date);
+        case 'week':  return isThisWeek(date);
+        case 'month': return isThisMonth(date);
+        default: return true;
+      }
+    });
   }
 
   // Apply search filter
@@ -369,6 +414,14 @@ if (filterSelect) {
       btn.classList.toggle('active', btn.dataset.filter === currentFilter);
     });
     
+    renderRides();
+  });
+}
+
+// Date filter dropdown handler
+if (riderDateFilter) {
+  riderDateFilter.addEventListener('change', () => {
+    currentDateFilter = riderDateFilter.value;
     renderRides();
   });
 }
